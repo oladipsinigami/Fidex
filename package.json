@@ -10,6 +10,7 @@
     "test:grade": "node scripts/test-grade-formula.mjs",
     "test:attest": "node scripts/test-attestation.mjs",
     "test:contracts": "node scripts/test-contracts.mjs",
+    "audit:staleness": "node scripts/audit-staleness.mjs",
     "verify:payments": "node scripts/verify-payment.mjs",
     "verify:challenge": "node scripts/check-challenge.mjs",
     "settle:live": "node scripts/settle-live.mjs"
