@@ -1,26 +1,307 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   ArcGrade design tokens
+   Night trading floor x rating agency x rare-book bindery.
+   ============================================================ */
+
+@theme {
+  /* surfaces */
+  --color-void: #07080b;
+  --color-panel: #0e1118;
+  --color-elev: #141821;
+  --color-sunk: #0a0d13;
+
+  /* ink */
+  --color-paper: #f3ede0;
+  --color-quiet: #9a9386;
+  --color-faint: #6b6559;
+
+  /* signal */
+  --color-gold: #e4c37a;
+  --color-gold-soft: #c9a95f;
+  --color-gold-deep: #8a6f38;
+
+  /* verdict */
+  --color-reserve: #6fcf97;
+  --color-caution: #e0a45a;
+  --color-stop: #e25b4c;
+
+  /* letter washes */
+  --color-ink: #0b1612;
+  --color-ash: #1c140f;
+
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  * {
+    border-color: rgba(232, 214, 176, 0.12);
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-void);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+
+  /* printed-paper grain. Fixed so it reads as the desk, not the card. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: rgba(228, 195, 122, 0.24);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: 1px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #22262f;
+    border: 1px solid rgba(232, 214, 176, 0.1);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2e333d;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+
+/* ============================================================
+   Component grammar
+   ============================================================ */
+
+@layer components {
+  /* Certificate: warm gold corner ticks, like a rating plate. */
+  .plate {
+    position: relative;
+    background: linear-gradient(
+      168deg,
+      var(--color-elev) 0%,
+      var(--color-panel) 62%,
+      var(--color-sunk) 100%
+    );
+    border: 1px solid rgba(232, 214, 176, 0.12);
+  }
+  .plate::before,
+  .plate::after {
+    content: "";
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-color: rgba(228, 195, 122, 0.5);
+    border-style: solid;
+    pointer-events: none;
+  }
+  .plate::before {
+    top: 8px;
+    left: 8px;
+    border-width: 1px 0 0 1px;
+  }
+  .plate::after {
+    bottom: 8px;
+    right: 8px;
+    border-width: 0 1px 1px 0;
+  }
+
+  /* Hairline rule that draws on first paint. */
+  .rule-draw {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(232, 214, 176, 0) 0%,
+      rgba(232, 214, 176, 0.34) 18%,
+      rgba(232, 214, 176, 0.34) 82%,
+      rgba(232, 214, 176, 0) 100%
+    );
+    transform-origin: left center;
+    animation: rule-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Very slow radial wash behind the hero. Gold, 8%. Not a loop. */
+  .hero-wash::before {
+    content: "";
+    position: absolute;
+    inset: -30% -10% auto -10%;
+    height: 620px;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 60% 50% at 50% 0%,
+      rgba(228, 195, 122, 0.08) 0%,
+      rgba(228, 195, 122, 0.03) 38%,
+      transparent 72%
+    );
+  }
+
+  /* Small-caps institutional label. */
+  .label-xs {
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-quiet);
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Card hover: 1px gold edge + 4px lift. No giant shadows. */
+  .lift {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 180ms ease;
+  }
+  .lift:hover {
+    transform: translateY(-4px);
+    border-color: rgba(228, 195, 122, 0.34);
+  }
+
+  /* Ledger table: row hover wash, sticky first column, no zebra. */
+  .ledger {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .ledger tbody tr {
+    transition: background-color 140ms ease;
+  }
+  .ledger tbody tr:hover {
+    background-color: rgba(228, 195, 122, 0.045);
+  }
+  .ledger .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--color-void);
+  }
+  .ledger tbody tr:hover .sticky-col {
+    background: #0c0f15;
+  }
+
+  .link-gold {
+    color: var(--color-gold);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(228, 195, 122, 0.28);
+    transition: border-color 150ms ease;
+  }
+  .link-gold:hover {
+    border-bottom-color: var(--color-gold);
+  }
+}
+
+@keyframes rule-draw {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* Letter grade slams in: short scale + blur, then settles. */
+@keyframes grade-slam {
+  0% {
+    opacity: 0;
+    transform: scale(1.14);
+    filter: blur(9px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.grade-slam {
+  animation: grade-slam 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.axis-bar-fill {
+  transform-origin: left center;
+  animation: bar-fill 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tape {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .grade-slam,
+  .axis-bar-fill,
+  .rule-draw {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+@media print {
+  body::after,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #111;
+  }
+  .plate {
+    background: #fff;
+    border-color: #999;
+  }
 }

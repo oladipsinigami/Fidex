@@ -1,0 +1,56 @@
+You are an expert onchain smart contract and agent standards engineer using the `agent-standards` skill on Circle Arc Testnet (chain ID 5042002).
+
+TASK:
+Build a complete, audited, and tested Solidity smart contract `contracts/src/ArcGradeRegistry.sol` and its comprehensive Foundry test suite `contracts/test/ArcGradeRegistry.t.sol`.
+
+CONTEXT & SPECIFICATION:
+ArcGrade (https://arcgrade.xyz) is the institutional DeFi risk rating protocol on Circle Arc Testnet (Chain ID: 5042002).
+We need an immutable on-chain registry where analysts and autonomous AI agents record cryptographic risk attestations.
+
+1. EIP-712 Specification:
+   Domain:
+     name: "ArcGrade Studio"
+     version: "1"
+     chainId: 5042002
+     verifyingContract: address(this)
+   Type:
+     RatingAttestation(string slug,string letter,uint256 score,address analyst,uint256 timestamp)
+
+2. Smart Contract Functionality (`ArcGradeRegistry.sol`):
+   - Struct:
+     struct Attestation {
+         string slug;
+         string letter;
+         uint256 score;       // 0 to 100
+         address analyst;
+         uint256 timestamp;
+         bytes signature;
+     }
+   - Functions:
+     a) `attest(string calldata slug, string calldata letter, uint256 score) external returns (bytes32 id)`:
+        Allows `msg.sender` (analyst or autonomous AI agent) to attest directly on-chain.
+     b) `attestWithSig(string calldata slug, string calldata letter, uint256 score, uint256 timestamp, bytes calldata signature) external returns (bytes32 id)`:
+        Recovers signer using OpenZeppelin `ECDSA` / EIP-712 and records attestation. Includes signature replay protection (hash of signature/attestation marked as seen).
+     c) Agent Standards integration (ERC-8004 / ERC-8183 reputation concepts):
+        Track analyst / agent reputation:
+        - `totalAttestationsByAnalyst(address analyst)`
+        - `isRegisteredAgent(address agent)` (analyst or registered agent flag)
+        - `registerAgent(string calldata metadataUri)` allowing autonomous agents to declare their identity URI on-chain.
+     d) Queries:
+        - `getLatestAttestation(string calldata slug) external view returns (Attestation memory)`
+        - `getAttestationCount(string calldata slug) external view returns (uint256)`
+        - `getAttestationByIndex(string calldata slug, uint256 index) external view returns (Attestation memory)`
+   - Events:
+     `event RatingAttested(bytes32 indexed id, string indexed slug, address indexed analyst, string letter, uint256 score, uint256 timestamp);`
+     `event AgentRegistered(address indexed agent, string metadataUri, uint256 timestamp);`
+
+3. Foundry Test Suite (`ArcGradeRegistry.t.sol`):
+   - Test direct attestation
+   - Test EIP-712 `attestWithSig` with valid signature from a private key (using vm.sign)
+   - Test rejection of expired / invalid signatures
+   - Test replay protection on signatures (reverts if signature already used)
+   - Test agent registration and reputation count tracking
+   - Test query views (latest, count, index)
+
+DELIVERABLE:
+Provide `contracts/src/ArcGradeRegistry.sol` and `contracts/test/ArcGradeRegistry.t.sol` using standard Foundry structure, ensuring `forge test` compiles and passes with 100% green tests.

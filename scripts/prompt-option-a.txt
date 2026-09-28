@@ -1,0 +1,48 @@
+You are an expert onchain agent engineer using the `circle-agent-wallet` skill on Circle Arc Testnet (chain ID 5042002).
+
+TASK:
+Build a complete, production-ready TypeScript/Node.js autonomous agent buyer script for ArcGrade (`scripts/arc-agent-buyer.ts` or `.mjs`).
+
+CONTEXT & SPECIFICATION:
+ArcGrade is a DeFi risk rating protocol on Circle Arc Testnet (`eip155:5042002`). It protects premium protocol risk dossiers behind an x402 nanopayment paywall.
+1. Target endpoint: `http://localhost:3001/api/v1/unlock` (or configurable via `ARCGRADE_URL` env var).
+2. The agent sends:
+   POST /api/v1/unlock
+   Content-Type: application/json
+   { "slug": "morpho", "scope": "dossier" }
+3. ArcGrade responds with HTTP 402 Payment Required:
+   Headers:
+     PAYMENT-REQUIRED: <base64 challenge>
+   Body:
+     {
+       "x402": true,
+       "slug": "morpho",
+       "scope": "dossier",
+       "amount": 10000,
+       "currency": "0x3600000000000000000000000000000000000000",
+       "recipient": "0xdB99D8C6b401cF97eaE6c835345938edF5299d25",
+       "network": "eip155:5042002",
+       "resource": "https://arcgrade.xyz/api/v1/grade/morpho"
+     }
+4. Autonomous Payment Execution:
+   - The agent inspects the 402 challenge, verifies network is `eip155:5042002`, amount is 10,000 atomic units ($0.01 USDC), and recipient matches.
+   - The agent uses Circle Agent Wallet or an Arc Testnet wallet (viem / ethers with private key or Circle developer wallet client) to execute the transfer of 0.01 USDC on Arc Testnet (Chain ID 5042002, RPC: https://rpc.testnet.arc.network).
+   - The agent captures the transaction hash `txHash`.
+5. Payment Settlement & Unlocking:
+   - The agent submits:
+     POST /api/v1/unlock
+     {
+       "slug": "morpho",
+       "scope": "dossier",
+       "txHash": "<txHash>"
+     }
+   - Receives HTTP 200 with:
+     {
+       "unlocked": true,
+       "receipt": { "token": "...", "expiresAt": ..., "scope": "dossier", "slug": "morpho" },
+       "dossier": { ... }
+     }
+   - Verifies the receipt and prints a clean ASCII terminal summary of the unlocked risk dossier (Composite Grade, Weakest Link, Axis Scores, Primary Citations).
+
+DELIVERABLE:
+Provide the complete, self-contained, executable script `scripts/arc-agent-buyer.mjs` (or `.ts`) that can be executed directly with `node` without complex scaffolding, along with clear documentation and tests.
