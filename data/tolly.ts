@@ -55,7 +55,7 @@ export const tolly: Raw = {
   ],
   unlocks: [],
   incidents: [],
-  updatedAt: new Date().toISOString(),
+  updatedAt: "2026-09-26T15:00:00.000Z",
   analystId: "analyst-012",
   contentHash: "0x89ab12cd34ef567890abcdef1234567890abcdef",
   related: ["arctide-dex", "uniswap-v3-arc", "usdc"],

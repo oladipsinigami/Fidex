@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { arcTestnet } from "@/lib/wagmi";
+import { arc, arcTestnet } from "@/lib/wagmi";
 import { toast } from "@/lib/toast";
 import { LockGlyph } from "./Axis";
 
@@ -46,14 +46,17 @@ export function Paywall({
     setBusy(true);
 
     try {
-      // 1. Ensure user is on Arc Testnet (Chain ID: 5042002)
-      if (chain?.id !== arcTestnet.id && switchChainAsync) {
+      const isTestnet = process.env.NEXT_PUBLIC_ARCGRADE_NETWORK === "mainnet" ? false : true;
+      const targetChain = isTestnet ? arcTestnet : arc;
+
+      // 1. Ensure user is on the correct Arc network
+      if (chain?.id !== targetChain.id && switchChainAsync) {
         toast({
           title: "Network Switch Required",
-          body: "Switching wallet to Circle Arc Testnet…",
+          body: `Switching wallet to ${targetChain.name}…`,
           kind: "info",
         });
-        await switchChainAsync({ chainId: arcTestnet.id });
+        await switchChainAsync({ chainId: targetChain.id });
       }
 
       // 2. Fetch the x402 payment challenge from the server
@@ -70,22 +73,25 @@ export function Paywall({
       }
 
       const payTo = accept.payTo as `0x${string}`;
+      const isAxis = scope === "axis";
+      const valueWei = isAxis ? 1_000_000_000_000_000n : 10_000_000_000_000_000n; // $0.001 vs $0.01
+      const priceLabel = isAxis ? "$0.001" : "$0.01";
 
       toast({
         title: "Confirm Payment",
-        body: "Please sign the $0.01 USDC transfer in your wallet…",
+        body: `Please sign the ${priceLabel} USDC transfer in your wallet…`,
         kind: "info",
       });
 
-      // 3. Execute real transaction: 0.01 native USDC on Arc Testnet (10^16 wei)
+      // 3. Execute real transaction: native USDC on Arc (18 decimals)
       const txHash = await sendTransactionAsync({
         to: payTo,
-        value: 10_000_000_000_000_000n, // $0.01 in Arc native USDC (18 decimals)
+        value: valueWei,
       });
 
       toast({
         title: "Payment Submitted",
-        body: `Verifying transaction on Arc Testnet (${txHash.slice(0, 10)}…)`,
+        body: `Verifying transaction on ${targetChain.name} (${txHash.slice(0, 10)}…)`,
         kind: "info",
       });
 

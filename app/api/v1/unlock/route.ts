@@ -98,8 +98,8 @@ export async function POST(req: Request) {
     payer = v.payer;
     mode = v.mode;
   } else if (txHash && typeof txHash === "string" && PAY_TO) {
-    // Path 2: Direct on-chain USDC transfer verified on Arc Testnet RPC
-    const v = await verifyArcTestnetTx(txHash, PAY_TO);
+    // Path 2: Direct on-chain USDC transfer verified on Arc RPC
+    const v = await verifyArcTestnetTx(txHash, PAY_TO, expected);
     if (!v.ok) {
       return challengeResponse(slug, scope, axisId, {
         error: "onchain_verification_failed",

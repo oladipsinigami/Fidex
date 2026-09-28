@@ -39,7 +39,7 @@ export const usyc: Raw = {
       [c("Reserve composition", "https://www.circle.com/transparency", "defi")]),
     ax("arcFit", 88, "Native on Arc, USDC-quoted.",
       "Issued natively on Arc and redeemable into native USDC, so the exit path needs no bridge. A live CCTP route exists for other chains.",
-      [c("Arc docs", "https://docs.arc.network", "arc")]),
+      [c("Arc docs", "https://docs.arc.io", "arc")]),
   ],
   delta7d: 3,
   tvlUsd: 71_000_000,

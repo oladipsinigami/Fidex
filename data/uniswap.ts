@@ -40,7 +40,7 @@ export const uniswap: Raw = {
       [c("Volume data", "https://defillama.com", "defi")]),
     ax("arcFit", 90, "Native Arc deployment, same bytecode.",
       "Deployed natively on Arc with identical immutable bytecode, and pairs quote against native USDC. No wrapper layer, so no additional bridge risk.",
-      [c("Arc docs", "https://docs.arc.network", "arc")]),
+      [c("Arc docs", "https://docs.arc.io", "arc")]),
   ],
   delta7d: -1,
   tvlUsd: 94_000_000,

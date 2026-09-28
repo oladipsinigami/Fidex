@@ -57,7 +57,7 @@ export const arctide: Raw = {
     { date: "2026-11-01", amount: "500,000 AT", pctOfFloat: 5.2, note: "Community contributor vesting tranche" }
   ],
   incidents: [],
-  updatedAt: new Date().toISOString(),
+  updatedAt: "2026-09-26T14:30:00.000Z",
   analystId: "analyst-009",
   contentHash: "0x3f98a21b45c89d70e123456789abcde012345678",
   related: ["uniswap-v3-arc", "synthra-v3", "usdc"],

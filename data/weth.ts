@@ -93,7 +93,7 @@ export const weth: Raw = {
       "Essential collateral for Arc lending ecosystems.",
       "Bridged through canonical Circle Gateway routes to provide non-stable collateral essential for capital efficiency on Arc.",
       [
-        c("Arc Docs", "https://docs.arc.network", "arc"),
+        c("Arc Docs", "https://docs.arc.io", "arc"),
       ],
     ),
   ],

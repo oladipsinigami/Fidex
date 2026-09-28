@@ -56,7 +56,7 @@ export const eurc: Raw = {
   ],
   unlocks: [],
   incidents: [],
-  updatedAt: new Date().toISOString(),
+  updatedAt: "2026-09-26T12:00:00.000Z",
   analystId: "analyst-001",
   contentHash: "0xabcdef1234567890abcdef1234567890abcdef12",
   related: ["usdc", "circle-gateway", "usyc"],

@@ -23,7 +23,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     id: "nav-brand",
     badge: "Step 1 of 8 · Platform",
     title: "Circle Arc Native Risk Desk",
-    subtitle: "Built exclusively for USDC-native execution on Chain 5042.",
+    subtitle: "Built exclusively for USDC-native execution on Circle Arc (Chain 5042002 / 5042).",
     explanation:
       "ArcGrade sits at the top of the Circle Arc stack. Unlike chains where gas and fees are paid in volatile tokens, Arc operates with native USDC. ArcGrade tracks every protocol and token deploying on Arc.",
     selector: '[data-walkthrough="nav-brand"]',

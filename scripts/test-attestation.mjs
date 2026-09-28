@@ -18,7 +18,7 @@ const ATTESTATION_DOMAIN = {
   name: "ArcGrade Studio",
   version: "1",
   chainId: 5042002,
-  verifyingContract: "0x3600000000000000000000000000000000000000",
+  verifyingContract: process.env.NEXT_PUBLIC_ARCGRADE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000",
 };
 
 const ATTESTATION_TYPES = {

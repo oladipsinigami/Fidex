@@ -1,8 +1,11 @@
+export const REGISTRY_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_ARCGRADE_REGISTRY_ADDRESS ||
+  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
 export const ATTESTATION_DOMAIN = {
   name: "ArcGrade Studio",
   version: "1",
   chainId: 5042002,
-  verifyingContract: "0x3600000000000000000000000000000000000000" as `0x${string}`,
+  verifyingContract: REGISTRY_CONTRACT_ADDRESS,
 } as const;
 
 export const ATTESTATION_TYPES = {

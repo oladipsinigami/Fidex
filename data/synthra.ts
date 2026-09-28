@@ -52,7 +52,7 @@ export const synthra: Raw = {
   ],
   unlocks: [],
   incidents: [],
-  updatedAt: new Date().toISOString(),
+  updatedAt: "2026-09-26T16:00:00.000Z",
   analystId: "analyst-007",
   contentHash: "0x1234567890abcdef1234567890abcdef12345678",
   related: ["arctide-dex", "uniswap-v3-arc", "usdc"],

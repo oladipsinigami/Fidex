@@ -41,7 +41,7 @@ export const aave: Raw = {
       [c("Rate history", "https://governance.aave.com", "defi")]),
     ax("arcFit", 94, "Native deployment, native USDC collateral.",
       "Contracts are native to Arc with no bridging wrapper, and USDC is both collateral and gas. The CCTP route to Ethereum mainnet is live and adds an exit if Arc liquidity thins.",
-      [c("Arc docs", "https://docs.arc.network", "arc")]),
+      [c("Arc docs", "https://docs.arc.io", "arc")]),
   ],
   delta7d: 2,
   tvlUsd: 412_000_000,

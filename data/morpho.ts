@@ -40,7 +40,7 @@ export const morpho: Raw = {
       [c("Utilisation data", "https://docs.morpho.org", "defi")]),
     ax("arcFit", 92, "Native Arc, native USDC, CCTP out.",
       "Native deployment with no wrapper contracts, USDC as collateral and gas, and a live CCTP route for exit. Validator-set disclosure is published at the chain level.",
-      [c("Arc docs", "https://docs.arc.network", "arc")]),
+      [c("Arc docs", "https://docs.arc.io", "arc")]),
   ],
   delta7d: 1,
   tvlUsd: 186_000_000,

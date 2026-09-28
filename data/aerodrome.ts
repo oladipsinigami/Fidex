@@ -93,7 +93,7 @@ export const aerodrome: Raw = {
       "Custom gas optimizations for Arc's native USDC fee structure.",
       "Deploys directly on Arc, taking advantage of predictable sub-cent gas fees denominated in native USDC.",
       [
-        c("Arc Ecosystem", "https://docs.arc.network", "arc"),
+        c("Arc Ecosystem", "https://docs.arc.io", "arc"),
       ],
     ),
   ],

@@ -58,7 +58,7 @@ export const gateway: Raw = {
   incidents: [
     { date: "2024-03-12", severity: "low", title: "API Attestation Latency Spike (Resolved)", resolved: true }
   ],
-  updatedAt: new Date().toISOString(),
+  updatedAt: "2026-09-26T10:00:00.000Z",
   analystId: "analyst-001",
   contentHash: "0x7a3c89f14b2d56e71903a45c6d8ef12409b3c45a",
   related: ["usdc", "aave-v4-arc", "morpho-arc"],

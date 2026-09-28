@@ -100,7 +100,7 @@ ArcGrade returns this structure on HTTP 402:
   "currency": "0x3600000000000000000000000000000000000000",
   "recipient": "0xdB99D…",    // ArcGrade's receiving address
   "network": "eip155:5042002",
-  "resource": "https://arcgrade.xyz/api/v1/grade/morpho"
+  "resource": "https://<your-host>/api/v1/grade/morpho" // built from ARCGRADE_PUBLIC_URL
 }
 ```
 

@@ -1,7 +1,8 @@
 import { ARC } from "./arcchain";
 import { isTxHashUsed } from "./db";
 
-const RPC_URL = process.env.ARCGRADE_TESTNET_RPC ?? ARC.testnetRpc;
+const isTestnet = (process.env.ARCGRADE_NETWORK ?? "mainnet").toLowerCase() === "testnet";
+const RPC_URL = process.env.ARCGRADE_RPC ?? (isTestnet ? (process.env.ARCGRADE_TESTNET_RPC ?? ARC.testnetRpc) : ARC.rpc);
 
 export interface OnChainVerificationResult {
   ok: boolean;
@@ -11,13 +12,14 @@ export interface OnChainVerificationResult {
 }
 
 /**
- * Verifies that a transaction on Arc Testnet successfully transferred
- * at least $0.01 USDC (10,000 atomic ERC-20 units or equivalent native USDC)
- * to the configured ARCGRADE_PAY_TO address.
+ * Verifies that a transaction on Arc successfully transferred
+ * at least expectedUnits of USDC (6 decimals, e.g. 10,000 for $0.01 or 1,000 for $0.001,
+ * or equivalent native USDC in 18 decimals) to the configured ARCGRADE_PAY_TO address.
  */
 export async function verifyArcTestnetTx(
   txHash: string,
   expectedPayTo: string,
+  expectedUnits: bigint = 10_000n,
 ): Promise<OnChainVerificationResult> {
   const cleanHash = txHash.trim().toLowerCase();
   if (!/^0x[a-f0-9]{64}$/.test(cleanHash)) {
@@ -107,8 +109,8 @@ export async function verifyArcTestnetTx(
         return { ok: false, reason: "wrong_erc20_recipient" };
       }
 
-      // Minimum 10,000 atomic units ($0.01 USDC)
-      if (amount < 10_000n) {
+      // Minimum expectedUnits atomic units (6 decimals)
+      if (amount < expectedUnits) {
         return { ok: false, reason: "insufficient_usdc_amount" };
       }
 
@@ -119,8 +121,9 @@ export async function verifyArcTestnetTx(
     const isNativeTransfer = (tx.to as string)?.toLowerCase() === expectedPayTo.toLowerCase();
     const nativeValue = BigInt(tx.value ?? "0x0");
 
-    // Native USDC on Arc has 18 decimals, so $0.01 = 10,000,000,000,000,000 wei (10^16)
-    if (isNativeTransfer && nativeValue >= 10_000_000_000_000_000n) {
+    // Native USDC on Arc has 18 decimals (1 ERC-20 6-dec unit = 10^12 native 18-dec wei)
+    const requiredNativeWei = expectedUnits * 1_000_000_000_000n;
+    if (isNativeTransfer && nativeValue >= requiredNativeWei) {
       return { ok: true, payer, txHash: cleanHash };
     }
 

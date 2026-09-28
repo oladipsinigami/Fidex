@@ -92,7 +92,7 @@ export const tollyToken: Raw = {
       "Born natively on Arc as a flagship consumer token.",
       "Deeply integrated with Arc's sub-second transaction speed and USDC-denominated micro-economy.",
       [
-        c("Arc Ecosystem", "https://docs.arc.network", "arc"),
+        c("Arc Ecosystem", "https://docs.arc.io", "arc"),
       ],
     ),
   ],

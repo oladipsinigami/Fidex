@@ -40,7 +40,7 @@ export const usdc: Raw = {
       [c("Reserve yield", "https://www.circle.com/transparency", "defi")]),
     ax("arcFit", 98, "Native on Arc, and the gas asset.",
       "USDC is Arc's native gas token, so it is the base unit of the chain rather than a bridged copy. It exists on Arc directly with no bridging step.",
-      [c("Arc docs", "https://docs.arc.network", "arc")]),
+      [c("Arc docs", "https://docs.arc.io", "arc")]),
   ],
   delta7d: 0,
   tvlUsd: 1_840_000_000,

@@ -92,7 +92,7 @@ export const argus: Raw = {
       "Arc's low-latency block times match game tick settlement requirements.",
       "Fast finality and cheap USDC micro-transactions allow real-time game item mints and world trade settlement.",
       [
-        c("Arc Network Integration", "https://docs.arc.network", "arc"),
+        c("Arc Network Integration", "https://docs.arc.io", "arc"),
       ],
     ),
   ],

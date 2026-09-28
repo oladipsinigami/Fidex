@@ -12,6 +12,7 @@
     "test:contracts": "node scripts/test-contracts.mjs",
     "audit:staleness": "node scripts/audit-staleness.mjs",
     "verify:payments": "node scripts/verify-payment.mjs",
+    "verify:onchain": "node scripts/test-onchain-verify.mjs",
     "verify:challenge": "node scripts/check-challenge.mjs",
     "settle:live": "node scripts/settle-live.mjs"
   },

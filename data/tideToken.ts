@@ -92,7 +92,7 @@ export const tideToken: Raw = {
       "Built natively for Arc's high performance liquidity rails.",
       "Designed specifically for Arc with direct integration into native USDC gas settlement.",
       [
-        c("Arc Network", "https://docs.arc.network", "arc"),
+        c("Arc Network", "https://docs.arc.io", "arc"),
       ],
     ),
   ],

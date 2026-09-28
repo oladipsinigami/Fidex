@@ -92,7 +92,7 @@ export const edgex: Raw = {
       "Arc's sub-second finality is critical for perpetual clearing.",
       "Directly leverages Arc's deterministic execution and USDC-native gas model for rapid margin settlements.",
       [
-        c("Arc Network Integration", "https://docs.arc.network", "arc"),
+        c("Arc Network Integration", "https://docs.arc.io", "arc"),
       ],
     ),
   ],
