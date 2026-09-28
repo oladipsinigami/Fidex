@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { StudioTable } from "@/components/StudioTable";
+import { StudioTable, type StudioRow } from "@/components/StudioTable";
 import { byLetterDesc } from "@/data/protocols";
-import { METHODOLOGY_VERSION } from "@/lib/grade";
+import { METHODOLOGY_VERSION, isStale } from "@/lib/grade";
 import { fetchArcProtocols } from "@/lib/discover";
 import { isListable, screen } from "@/lib/screen";
 import { WalletGate } from "@/components/WalletGate";
@@ -15,7 +15,22 @@ export const metadata: Metadata = {
 export const revalidate = 900;
 
 export default async function StudioPage() {
-  const rows = byLetterDesc();
+  const fullProtocols = byLetterDesc();
+  const rows: StudioRow[] = fullProtocols.map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    category: p.category,
+    letter: p.letter,
+    score: p.score,
+    updatedAt: p.updatedAt,
+    isStale: isStale(p),
+    axes: p.axes.map((a) => ({
+      id: a.id,
+      label: a.label,
+      score: a.score,
+      weight: a.weight,
+    })),
+  }));
   const stale = rows.filter((p) => p.letter === "D" || p.letter === "F").length;
 
   // Coverage gap: how much of Arc is discovered but not yet hand-analysed.

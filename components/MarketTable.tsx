@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { Letter, LiveProtocol, Protocol } from "@/lib/types";
+import type { Letter, LiveProtocol } from "@/lib/types";
 import { GradeLetter } from "./RatingPlate";
-import { ageLabel, formatApy, formatUsd, isStale } from "@/lib/grade";
+import { ageLabel, formatApy, formatUsd } from "@/lib/grade";
 import { screen } from "@/lib/screen";
 
 type Sort = "score" | "tvl" | "change" | "name";
@@ -23,7 +23,7 @@ export interface UnifiedRow {
   delta7d: number;
   tvlUsd: number;
   apy: number | null;
-  yieldNote: string;
+  yieldNote?: string;
   updatedAt: string;
   isStale?: boolean;
 }
@@ -36,7 +36,7 @@ export function MarketTable({
   rows,
   liveRows = [],
 }: {
-  rows: Protocol[];
+  rows: UnifiedRow[];
   liveRows?: LiveProtocol[];
 }) {
   const [scope, setScope] = useState<Scope>("all");
@@ -46,30 +46,10 @@ export function MarketTable({
 
   // Normalize all rows into a unified model
   const allItems: UnifiedRow[] = useMemo(() => {
-    const list: UnifiedRow[] = [];
-    const seenSlugs = new Set<string>();
-
-    // 1. Hand-analysed dossiers
-    for (const p of rows) {
-      seenSlugs.add(p.slug);
-      seenSlugs.add(p.name.toLowerCase().replace(/[^a-z0-9]/g, ""));
-      list.push({
-        kind: "dossier",
-        slug: p.slug,
-        name: p.name,
-        monogram: p.monogram,
-        category: p.category,
-        chainFocus: p.chainFocus,
-        letter: p.letter,
-        score: p.score,
-        delta7d: p.delta7d,
-        tvlUsd: p.tvlUsd,
-        apy: p.apy,
-        yieldNote: p.yieldNote,
-        updatedAt: p.updatedAt,
-        isStale: isStale(p),
-      });
-    }
+    const list: UnifiedRow[] = [...rows];
+    const seenSlugs = new Set<string>(
+      rows.map((r) => r.slug).concat(rows.map((r) => r.name.toLowerCase().replace(/[^a-z0-9]/g, ""))),
+    );
 
     // 2. Discovered live protocols
     for (const l of liveRows) {

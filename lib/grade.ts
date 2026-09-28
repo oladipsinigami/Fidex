@@ -29,7 +29,7 @@ export const BANDS: { letter: Letter; min: number; max: number; label: string }[
  *    hide a missing audit. linkFactor ranges 0.50 (weakest = 0) to
  *    1.00 (weakest = 100), on a concave curve so mid weakness bites.
  */
-export function compositeOf(axes: Axis[]): number {
+export function compositeOf(axes: Array<{ weight: number; score: number }>): number {
   const compounding = axes.filter((a) => a.weight > 0);
   const totalWeight = compounding.reduce((s, a) => s + a.weight, 0);
   if (totalWeight === 0) return 0;
@@ -129,4 +129,30 @@ export const LETTER_TONE: Record<
 
 export function toneFor(letter: Letter) {
   return LETTER_TONE[letter];
+}
+
+import { keccak256, stringToBytes } from "viem";
+
+/**
+ * Computes a deterministic cryptographic content hash of a protocol's evaluation data.
+ * Anchors the slug, score, letter, axes, kill shots, and dossier verdict so any
+ * alteration to the underlying intelligence is immediately detectable.
+ */
+export function computeContentHash(p: {
+  slug: string;
+  score: number;
+  letter: string;
+  dossierVerdict?: string;
+  axes: Array<{ id: string; score: number; label: string; summary?: string; evidence?: string }>;
+  killShots?: Array<{ title: string; detail: string; axis: string }>;
+}): string {
+  const payload = JSON.stringify({
+    slug: p.slug,
+    score: p.score,
+    letter: p.letter,
+    verdict: p.dossierVerdict ?? "",
+    axes: p.axes.map((a) => ({ id: a.id, score: a.score, label: a.label, summary: a.summary ?? "", evidence: a.evidence ?? "" })),
+    killShots: (p.killShots ?? []).map((k) => ({ title: k.title, detail: k.detail, axis: k.axis })),
+  });
+  return keccak256(stringToBytes(payload));
 }

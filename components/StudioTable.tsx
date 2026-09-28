@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount, useSignTypedData } from "wagmi";
-import type { Protocol } from "@/lib/types";
+import type { Letter } from "@/lib/types";
 import { GradeLetter } from "./RatingPlate";
-import { ageLabel, bandFor, compositeOf, isStale, toneFor } from "@/lib/grade";
+import { ageLabel, bandFor, compositeOf, toneFor } from "@/lib/grade";
 import { ATTESTATION_DOMAIN, ATTESTATION_TYPES } from "@/lib/attestation";
 
 type RowState = "published" | "review" | "draft";
@@ -26,19 +26,35 @@ interface Attestation {
   timestamp: number;
 }
 
+export interface StudioRow {
+  slug: string;
+  name: string;
+  category: string;
+  letter: Letter;
+  score: number;
+  updatedAt: string;
+  isStale: boolean;
+  axes: Array<{
+    id: string;
+    label: string;
+    score: number;
+    weight: number;
+  }>;
+}
+
 /**
  * Analyst Studio Table.
  * Allows certified researchers to adjust axis ratings, inspect real-time
  * weakest-link compounding scores, and cryptographically sign EIP-712
  * attestations with an on-chain Web3 wallet on Arc Testnet.
  */
-export function StudioTable({ rows }: { rows: Protocol[] }) {
+export function StudioTable({ rows }: { rows: StudioRow[] }) {
   const [state, setState] = useState<Record<string, RowState>>({});
   const [open, setOpen] = useState<string | null>(null);
 
-  const statusOf = (p: Protocol): RowState => {
+  const statusOf = (p: StudioRow): RowState => {
     if (state[p.slug]) return state[p.slug];
-    return isStale(p) ? "review" : "published";
+    return p.isStale ? "review" : "published";
   };
 
   return (
@@ -127,7 +143,7 @@ function Editor({
   onAttested,
 }: {
   slug: string;
-  rows: Protocol[];
+  rows: StudioRow[];
   onClose: () => void;
   onAttested: (slug: string) => void;
 }) {

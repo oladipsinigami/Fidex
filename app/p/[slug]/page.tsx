@@ -83,7 +83,16 @@ export default async function ProtocolPage({
         <section className="mx-auto max-w-[1120px] px-5 py-10">
           <div className="grid gap-8 lg:grid-cols-2">
             {paid && <DecisionCard protocol={p} />}
-            <AgentSnippet protocol={p} paid={paid} />
+            <AgentSnippet
+              snippet={{
+                slug: p.slug,
+                letter: p.letter,
+                score: p.score,
+                contentHash: p.contentHash,
+                methodologyVersion: p.methodologyVersion,
+              }}
+              paid={paid}
+            />
           </div>
         </section>
         {paid && p.unlocks.length > 0 && <UnlockTable p={p} />}

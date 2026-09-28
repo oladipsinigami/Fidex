@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { MarketTable } from "@/components/MarketTable";
+import { MarketTable, type UnifiedRow } from "@/components/MarketTable";
 import { byLetterDesc, TOTAL_TVL } from "@/data/protocols";
-import { METHODOLOGY_VERSION, formatUsd } from "@/lib/grade";
+import { METHODOLOGY_VERSION, formatUsd, isStale } from "@/lib/grade";
 import { fetchArcProtocols } from "@/lib/discover";
 import { isListable } from "@/lib/screen";
 
@@ -14,7 +14,23 @@ export const metadata: Metadata = {
 };
 
 export default async function MarketsPage() {
-  const rows = byLetterDesc();
+  const fullProtocols = byLetterDesc();
+  const rows: UnifiedRow[] = fullProtocols.map((p) => ({
+    kind: "dossier",
+    slug: p.slug,
+    name: p.name,
+    monogram: p.monogram,
+    category: p.category,
+    chainFocus: p.chainFocus,
+    letter: p.letter,
+    score: p.score,
+    delta7d: p.delta7d,
+    tvlUsd: p.tvlUsd,
+    apy: p.apy,
+    yieldNote: p.yieldNote,
+    updatedAt: p.updatedAt,
+    isStale: isStale(p),
+  }));
   const liveRows = (await fetchArcProtocols().catch(() => [])).filter(isListable);
   const seenNames = new Set(
     rows.map((r) => r.slug).concat(rows.map((r) => r.name.toLowerCase().replace(/[^a-z0-9]/g, ""))),

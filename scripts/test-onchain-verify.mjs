@@ -172,4 +172,4 @@ for (const suffix of ["", "-wal", "-shm"]) {
     rmSync(path.join(os.tmpdir(), `arcgrade-onchain-test-${RUN}.db${suffix}`), { force: true });
   } catch {}
 }
-process.exit(failed ? 1 : 0);
+process.exitCode = failed ? 1 : 0;

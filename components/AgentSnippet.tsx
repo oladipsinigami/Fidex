@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { Protocol } from "@/lib/types";
 import { siteUrl } from "@/lib/site";
 
+export interface AgentSnippetData {
+  slug: string;
+  letter: string | null;
+  score: number | null;
+  contentHash: string;
+  methodologyVersion: string;
+}
+
 /** Copy-paste agent block with a gold left rule. */
-export function AgentSnippet({ protocol: p, paid }: { protocol: Protocol; paid: boolean }) {
+export function AgentSnippet({ snippet: p, paid }: { snippet: AgentSnippetData; paid: boolean }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const curl = `curl -s ${siteUrl(`/api/v1/grade/${p.slug}/summary`)}`;

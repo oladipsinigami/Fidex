@@ -1,5 +1,5 @@
 import type { Protocol } from "@/lib/types";
-import { bandFor, compositeOf, METHODOLOGY_VERSION } from "@/lib/grade";
+import { bandFor, compositeOf, computeContentHash, METHODOLOGY_VERSION } from "@/lib/grade";
 import { aave } from "./aave";
 import { morpho } from "./morpho";
 import { uniswap } from "./uniswap";
@@ -50,10 +50,20 @@ export const PROTOCOLS: Protocol[] = [
 ].map(
   (p) => {
     const score = compositeOf(p.axes);
+    const letter = bandFor(score);
+    const contentHash = computeContentHash({
+      slug: p.slug,
+      score,
+      letter,
+      dossierVerdict: p.dossierVerdict,
+      axes: p.axes,
+      killShots: p.killShots,
+    });
     return {
       ...p,
       score,
-      letter: bandFor(score),
+      letter,
+      contentHash,
       methodologyVersion: METHODOLOGY_VERSION,
     };
   },
@@ -66,15 +76,25 @@ const SLUG_ALIASES: Record<string, string> = {
   "aave-v3": "aave-v4-arc",
   "aave-v4": "aave-v4-arc",
   morpho: "morpho-arc",
-  uniswap: "uniswap-v4-arc",
-  "uniswap-v4": "uniswap-v4-arc",
-  ember: "ember-yield",
+  uniswap: "uniswap-arc",
+  "uniswap-v4": "uniswap-arc",
+  ember: "emberyield-farm",
+  "ember-yield": "emberyield-farm",
   gateway: "circle-gateway",
-  tolly: "tolly-finance",
-  synthra: "synthra-dex",
-  aerodrome: "aerodrome-arc",
-  argus: "argus-oracle",
-  arctide: "arctide-vaults",
+  tolly: "tolly",
+  "tolly-finance": "tolly",
+  synthra: "synthra-v3",
+  "synthra-dex": "synthra-v3",
+  aerodrome: "aerodrome-slipstream",
+  "aerodrome-arc": "aerodrome-slipstream",
+  argus: "argus-world",
+  "argus-oracle": "argus-world",
+  arctide: "arctide-dex",
+  "arctide-vaults": "arctide-dex",
+  buidl: "blackrock-buidl",
+  usdc: "circle-usdc",
+  eurc: "eurc-arc",
+  weth: "weth-arc",
 };
 
 export function getProtocol(slug: string): Protocol | undefined {
