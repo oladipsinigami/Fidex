@@ -57,6 +57,14 @@ jobs:
         with:
           version: nightly
 
+      # contracts/lib is gitignored: the vendored Foundry dependencies are
+      # third-party source and do not belong in this repository. But
+      # .gitmodules exists while the paths are not registered as gitlinks, so
+      # `submodules: recursive` is a no-op and a fresh checkout has no libs.
+      # foundry.lock pins the versions, so forge install resolves them.
+      - name: Install Foundry dependencies
+        run: forge install --root contracts
+
       - name: Run Foundry smart contract tests
         run: npm run test:contracts
 
