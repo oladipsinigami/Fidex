@@ -1,0 +1,74 @@
+name: ArcGrade CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test & Audit Suite
+    runs-on: ubuntu-latest
+
+    env:
+      ARCGRADE_SECRET: 6e0dbbc5533d0f5b27c229242d2be65860167406dd62a11ad2266574e0d270a7
+      ARCGRADE_PUBLIC_URL: http://127.0.0.1:3000
+      ARCGRADE_NETWORK: testnet
+      ARCGRADE_PAY_TO: 0xdB99D8C6b401cF97eaE6c835345938edF5299d25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Foundry smart contract tests
+        run: npm run test:contracts
+
+      - name: Test rating mathematical formulas
+        run: npm run test:grade
+
+      - name: Verify payment pipeline & fail-closed security
+        run: npm run verify:payments
+
+      - name: Verify on-chain settlement & calldata decoding
+        run: npm run verify:onchain
+
+      - name: Verify x402 specification compliance
+        run: npm run verify:challenge
+
+      - name: Verify EIP-712 analyst attestations
+        run: npm run test:attest
+
+      - name: Build Next.js application
+        run: npm run build
+
+      - name: Start server & audit SSR paywall boundaries (Zero Leak Gate)
+        run: |
+          npm run start -p 3000 &
+          sleep 4
+          npm run test:leak
+
+      - name: Run automated telemetry watchdog
+        run: npm run verify:watchdog
+      - name: Assert the freshness clock cannot be advanced by automation
+        run: npm run test:freshness

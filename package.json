@@ -1,5 +1,5 @@
 {
-  "name": "arcgrade",
+  "name": "fidex",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -16,6 +16,8 @@
     "verify:leak": "node scripts/check-ssr-leak.mjs",
     "verify:challenge": "node scripts/check-challenge.mjs",
     "test:leak": "node scripts/check-ssr-leak.mjs",
+    "verify:watchdog": "node scripts/refresh-telemetry.mjs",
+    "test:freshness": "node --experimental-strip-types scripts/test-freshness.mjs",
     "settle:live": "node scripts/settle-live.mjs"
   },
   "dependencies": {

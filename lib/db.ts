@@ -45,11 +45,21 @@ let dbInstance: DatabaseSync | null = null;
 function getDb(): DatabaseSync {
   if (dbInstance) return dbInstance;
 
-  const dbPath = process.env.ARCGRADE_DB_PATH
+  const dbPath = process.env.FIDEX_DB_PATH
+    ? path.resolve(process.env.FIDEX_DB_PATH)
+    : process.env.ARCGRADE_DB_PATH
     ? path.resolve(process.env.ARCGRADE_DB_PATH)
-    : path.join(process.cwd(), "data", "arcgrade.db");
+    : path.join(process.cwd(), "data", "fidex.db");
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+  // If migrating from legacy arcgrade.db to fidex.db
+  const legacyPath = path.join(process.cwd(), "data", "arcgrade.db");
+  if (dbPath.endsWith("fidex.db") && !fs.existsSync(dbPath) && fs.existsSync(legacyPath)) {
+    try {
+      fs.copyFileSync(legacyPath, dbPath);
+    } catch {}
+  }
 
   const db = new DatabaseSync(dbPath);
   // Enable WAL mode for high concurrency across Next.js worker threads
@@ -86,6 +96,16 @@ function getDb(): DatabaseSync {
       timestamp INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_attestations_slug ON attestations(slug);
+  `);
+
+  // Automated watchdog verification stamps table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS verifications (
+      slug TEXT PRIMARY KEY,
+      verified_at INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      details TEXT
+    );
   `);
 
   dbInstance = db;
@@ -258,4 +278,99 @@ export function getAttestations(slug: string): StoredAttestation[] {
   } catch {
     return [];
   }
+}
+
+export interface StoredVerification {
+  slug: string;
+  verifiedAt: number;
+  status: string;
+  details?: string;
+}
+
+/**
+ * Record an automated watchdog stamp.
+ *
+ * The default is deliberately NOT "healthy". Chain liveness is not a risk
+ * review, and a stamp that claims more than it checked is the thing this
+ * whole path exists to avoid. Callers must state what was actually verified.
+ */
+export function recordVerification(
+  slug: string,
+  status = "operational",
+  details = "Chain liveness only. No audit, exploit, reserve or admin-key review performed.",
+): void {
+  try {
+    const db = getDb();
+    const stmt = db.prepare(`
+      INSERT INTO verifications (slug, verified_at, status, details)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(slug) DO UPDATE SET
+        verified_at = excluded.verified_at,
+        status = excluded.status,
+        details = excluded.details
+    `);
+    stmt.run(slug, Date.now(), status, details);
+  } catch (err) {
+    console.error("Failed to record verification stamp:", err);
+  }
+}
+
+/** Get the latest automated verification for a protocol */
+export function getLatestVerification(slug: string): StoredVerification | null {
+  try {
+    const db = getDb();
+    const stmt = db.prepare("SELECT * FROM verifications WHERE slug = ?");
+    const row = stmt.get(slug) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      slug: String(row.slug),
+      verifiedAt: Number(row.verified_at),
+      status: String(row.status),
+      details: row.details ? String(row.details) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The effective last-reviewed timestamp for a protocol.
+ *
+ * Only two things may advance it:
+ *   1. `updatedAt` in the data file, which an analyst sets when they actually
+ *      re-review the axes.
+ *   2. A signed EIP-712 analyst attestation, which is a cryptographic claim
+ *      by a named analystId and therefore carries the same weight as (1).
+ *
+ * An automated watchdog stamp deliberately does NOT count. The watchdog only
+ * proves the chain is reachable; it reviews no audits, exploits, reserves or
+ * admin keys. Letting its stamp win the max() meant a daily CI run reset every
+ * rating's freshness clock, so no rating could ever go stale while the product
+ * advertised a 7-day SLA it was silently exempting itself from.
+ *
+ * The stamp is still recorded, and still readable via getLatestVerification --
+ * it is an audit log, not a licence to claim the dossier was re-reviewed.
+ */
+export function getEffectiveUpdatedAt(slug: string, fallbackIso: string): string {
+  try {
+    const db = getDb();
+    const attStmt = db.prepare("SELECT timestamp FROM attestations WHERE slug = ? ORDER BY timestamp DESC LIMIT 1");
+    const attRow = attStmt.get(slug) as { timestamp: number } | undefined;
+
+    const baseTs = new Date(fallbackIso).getTime() || 0;
+    const attTs = attRow?.timestamp || 0;
+
+    const maxTs = Math.max(baseTs, attTs);
+    return maxTs > 0 ? new Date(maxTs).toISOString() : fallbackIso;
+  } catch {
+    return fallbackIso;
+  }
+}
+
+/** Enriches a protocol with the effective last updated date from the database */
+export function enrichProtocolWithDb<T extends { slug: string; updatedAt: string }>(protocol: T): T {
+  return {
+    ...protocol,
+    updatedAt: getEffectiveUpdatedAt(protocol.slug, protocol.updatedAt),
+  };
 }
