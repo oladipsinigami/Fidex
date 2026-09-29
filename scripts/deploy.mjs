@@ -59,13 +59,26 @@ if (!existsSync(SECRETS) && process.argv[2] !== "doctor") {
 
 // ---------------------------------------------------------------- helpers
 
+/**
+ * On Windows, npx/vercel are .cmd shims and spawnSync cannot launch them
+ * (EINVAL, or a null status that hides the cause), so shell: true is required.
+ *
+ * That is only safe because no secret is ever passed as a command-line
+ * argument: VERCEL_TOKEN and TURSO_AUTH_TOKEN travel through the environment,
+ * and env vars are pushed over the REST API rather than `vercel env add`,
+ * which would have put a JWT in argv and exposed it in process listings.
+ */
+const isWin = process.platform === "win32";
+
 const run = (cmd, args, opts = {}) => {
   const r = spawnSync(cmd, args, {
     cwd: ROOT,
     encoding: "utf8",
+    shell: isWin,
     env: { ...process.env, ...envForChild() },
     ...opts,
   });
+  if (r.error) throw r.error;
   if (r.status !== 0 && !opts.allowFail) {
     console.error((r.stdout || "") + (r.stderr || ""));
     throw new Error(`${cmd} ${args[0]} exited ${r.status}`);
@@ -155,7 +168,25 @@ async function migrate() {
   client.close();
 }
 
-function pushEnv() {
+/**
+ * Push env vars over Vercel's REST API rather than `vercel env add`.
+ *
+ * Two reasons. On Windows, npx/vercel are .cmd shims that spawnSync cannot
+ * launch (EINVAL, or a null status that hides the cause), and the only fixes
+ * are shell: true -- which would put a JWT in an argv string and risk shell
+ * mangling it -- or passing secrets as command-line arguments, which leaks them
+ * into process listings. The API avoids both: no shell, and the secret travels
+ * in a request body.
+ */
+function vercelProject() {
+  const p = path.join(ROOT, ".vercel", "project.json");
+  if (!existsSync(p)) {
+    throw new Error(".vercel/project.json missing. Run: npx vercel link --yes --project=fidex");
+  }
+  return JSON.parse(readFileSync(p, "utf8"));
+}
+
+async function pushEnv() {
   const domain = productionDomain();
   const pairs = [
     ["TURSO_DATABASE_URL", S.TURSO_DATABASE_URL],
@@ -172,10 +203,30 @@ function pushEnv() {
   }
   const missing = pairs.filter(([, v]) => !v);
   if (missing.length) throw new Error(`refusing to deploy with empty: ${missing.map(([k]) => k).join(", ")}`);
+  if (!has("VERCEL_TOKEN")) throw new Error("VERCEL_TOKEN is required to push env vars");
 
-  console.log(`  pushing ${pairs.length} env vars to Vercel (production)...`);
+  const proj = vercelProject();
+  const teamQ = proj.orgId ? `&teamId=${proj.orgId}` : "";
+  const url = `https://api.vercel.com/v10/projects/${proj.projectId}/env?upsert=true${teamQ}`;
+
+  console.log(`  pushing ${pairs.length} env vars to ${proj.projectName} (production)...`);
   for (const [k, v] of pairs) {
-    run("npx", ["--yes", "vercel", "env", "add", "production", k, v], { stdio: "ignore" });
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${S.VERCEL_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key: k,
+        value: v,
+        type: "encrypted",
+        target: ["production", "preview", "development"],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`setting ${k} -> ${res.status} ${(await res.text()).slice(0, 160)}`);
+    }
     console.log(`    ${k}`);
   }
 }
@@ -214,7 +265,17 @@ async function smoke() {
     problems.push("resource does not match the deployed host -- buyers would pay for an unreachable URL");
   }
   if (accept.extra?.name !== "GatewayWalletBatched") problems.push("Gateway metadata missing");
-  if (String(accept.network) !== "eip155:5042") problems.push(`network is ${accept.network}, expected eip155:5042`);
+  if (String(accept.asset) !== "0x3600000000000000000000000000000000000000") {
+    problems.push(`asset is ${accept.asset}, expected Arc USDC`);
+  }
+  if (accept.payTo !== S.FIDEX_PAY_TO) problems.push(`payTo is ${accept.payTo}, expected the configured seller`);
+  if (Number(accept.amount) !== 10_000) problems.push(`amount is ${accept.amount}, expected 10000 ($0.01)`);
+
+  // Expect the network we asked for, not a hardcoded mainnet.
+  const wantNet = (S.FIDEX_NETWORK || "mainnet") === "testnet" ? "eip155:5042002" : "eip155:5042";
+  if (String(accept.network) !== wantNet) {
+    problems.push(`network is ${accept.network}, expected ${wantNet} for FIDEX_NETWORK=${S.FIDEX_NETWORK || "mainnet"}`);
+  }
 
   console.log(problems.length ? `\n  PROBLEMS:\n    ${problems.join("\n    ")}\n` : "\n  Paywall looks correct.\n");
   return problems.length;
