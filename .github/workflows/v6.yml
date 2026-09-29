@@ -1,0 +1,11 @@
+name: v6-prtrigger
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok

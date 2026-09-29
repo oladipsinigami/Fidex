@@ -1,0 +1,11 @@
+name: v2-jobenv
+on: [push]
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    env:
+      # a comment inside env
+      ARCGRADE_SECRET: ci-test-secret-not-a-real-credential
+      ARCGRADE_PAY_TO: 0xdB99D8C6b401cF97eaE6c835345938edF5299d25
+    steps:
+      - run: echo ok
