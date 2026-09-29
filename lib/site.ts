@@ -40,3 +40,17 @@ export const SITE_URL = RAW.replace(/\/+$/, "");
 export function siteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+/**
+ * True while `next build` is running.
+ *
+ * `next build` sets NODE_ENV=production, so any "required in production"
+ * guard that throws at module load also fires during page-data collection --
+ * which breaks the build itself, on CI and on Vercel, where the runtime
+ * variables are not necessarily present in the build environment.
+ *
+ * These guards exist to catch a misconfigured *deployment* at boot. A build is
+ * not a deployment, so the guards stand down here and still fail hard on the
+ * first real request.
+ */
+export const IS_BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build";

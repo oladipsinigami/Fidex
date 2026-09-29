@@ -24,6 +24,7 @@
     "test:leak": "node scripts/check-ssr-leak.mjs",
     "verify:watchdog": "node scripts/refresh-telemetry.mjs",
     "test:freshness": "node --experimental-strip-types scripts/test-freshness.mjs",
+    "test:prodguard": "node scripts/test-prod-guard.mjs",
     "settle:live": "node scripts/settle-live.mjs"
   },
   "dependencies": {

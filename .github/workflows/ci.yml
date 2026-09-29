@@ -98,6 +98,13 @@ jobs:
       - name: Build Next.js application
         run: npm run build
 
+      # The build above runs with no secret and no public URL, which is the
+      # point: `next build` sets NODE_ENV=production, and a guard that throws
+      # there would break the build instead of catching a bad deployment. This
+      # asserts the build passes and the runtime still refuses.
+      - name: Production guards fail at runtime, not at build
+        run: npm run test:prodguard
+
       # check-ssr-leak.mjs boots its own production server on its own port and
       # waits for readiness, so no server is started here. A previous version
       # ran `npm run start -p 3000 &` with `sleep 4`, which passes -p to npm
