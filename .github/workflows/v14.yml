@@ -1,0 +1,9 @@
+name: v14-payto-nonaddress
+on: [push]
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    env:
+      ARCGRADE_PAY_TO: not-an-address
+    steps:
+      - run: echo ok

@@ -1,0 +1,9 @@
+name: v13-foo-address
+on: [push]
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    env:
+      FOO: 0xdB99D8C6b401cF97eaE6c835345938edF5299d25
+    steps:
+      - run: echo ok
