@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { MarketTable, type UnifiedRow } from "@/components/MarketTable";
 import { byLetterDesc, TOTAL_TVL } from "@/data/protocols";
 import { METHODOLOGY_VERSION, formatUsd, isStale } from "@/lib/grade";
+import { enrichProtocolWithDb } from "@/lib/db";
 import { fetchArcProtocols } from "@/lib/discover";
+import { fetchLiveTvl, type Telemetry } from "@/lib/telemetry";
 import { isListable } from "@/lib/screen";
 
 export const revalidate = 900;
@@ -10,11 +12,14 @@ export const revalidate = 900;
 export const metadata: Metadata = {
   title: "Markets — every protocol & dApp on Arc",
   description:
-    "The full ArcGrade ledger: letter, score, 7-day change, TVL and yield note for every protocol, token, and dApp on Circle Arc.",
+    "The full Fidex ledger: letter, score, 7-day change, TVL and yield note for every protocol, token, and dApp on Circle Arc.",
 };
 
 export default async function MarketsPage() {
   const fullProtocols = byLetterDesc();
+  // Live TVL where a verified DeFiLlama mapping exists. A failure here yields an
+  // empty map, and rows fall back to the stored snapshot marked "snapshot".
+  const live = await fetchLiveTvl().catch(() => new Map<string, Telemetry>());
   const rows: UnifiedRow[] = fullProtocols.map((p) => ({
     kind: "dossier",
     slug: p.slug,
@@ -26,11 +31,13 @@ export default async function MarketsPage() {
     score: p.score,
     delta7d: p.delta7d,
     tvlUsd: p.tvlUsd,
+    liveTvlUsd: live.get(p.slug)?.tvlUsd ?? null,
     apy: p.apy,
     yieldNote: p.yieldNote,
     updatedAt: p.updatedAt,
     isStale: isStale(p),
   }));
+
   const liveRows = (await fetchArcProtocols().catch(() => [])).filter(isListable);
   const seenNames = new Set(
     rows.map((r) => r.slug).concat(rows.map((r) => r.name.toLowerCase().replace(/[^a-z0-9]/g, ""))),

@@ -125,7 +125,10 @@ export function arcFitScore(p: LlamaProtocol): { score: number; route: LiveProto
   return { score: 74, route: "native" };
 }
 
-export function toLiveProtocol(p: LlamaProtocol): LiveProtocol {
+export function toLiveProtocol(
+  p: LlamaProtocol,
+  source: "defillama" | "fallback-snapshot" = "defillama",
+): LiveProtocol {
   const tvl = arcTvl(p);
   const audits = p.audit_links?.filter((a) => a.url) ?? [];
   const fit = arcFitScore(p);
@@ -138,7 +141,7 @@ export function toLiveProtocol(p: LlamaProtocol): LiveProtocol {
     id,
     score: null,
     summary: "Not yet measured from a public source.",
-    evidence: `ArcGrade does not publish a number here yet. ${why}`,
+    evidence: `Fidex does not publish a number here yet. ${why}`,
     citations: [] as Citation[],
   });
 
@@ -161,7 +164,11 @@ export function toLiveProtocol(p: LlamaProtocol): LiveProtocol {
     mcap: p.mcap ?? null,
     auditLinks: audits.map((a) => ({ name: a.name ?? "Audit", url: a.url! })),
     fetchedAt: new Date().toISOString(),
-    source: "defillama",
+    // Honest about provenance. A fallback row is a hardcoded snapshot, not a
+    // live reading, and must never be presented as one -- otherwise a build
+    // that runs while DeFiLlama is down silently serves stale numbers labelled
+    // "live", which is the exact failure this project is meant to avoid.
+    source,
     axes: [
       unmeasured("security", "Requires reading the deployed contracts and the incident record, which no public API exposes."),
       measured("liquidity", liquidityScore(tvl),
@@ -186,7 +193,7 @@ export function toLiveProtocol(p: LlamaProtocol): LiveProtocol {
         fit.route === "native" ? "Deployed to Arc." : "Reaches Arc by bridge.",
         fit.route === "native"
           ? "Contracts are deployed on Arc. Arc fit never compounds into the score; a well-built protocol on the wrong chain is still the wrong chain for this mandate."
-          : "Arc exposure arrives through a bridge, so ArcGrade inherits the bridge's contract and liveness risk on top of the protocol's own.",
+          : "Arc exposure arrives through a bridge, so Fidex inherits the bridge's contract and liveness risk on top of the protocol's own.",
         [c("DeFiLlama", defi, "defi"), c("Arc explorer", explorer, "explorer")]),
     ],
   };
@@ -250,7 +257,7 @@ export async function fetchArcProtocols(signal?: AbortSignal): Promise<LiveProto
     const all = (await res.json()) as LlamaProtocol[];
     const filtered = all
       .filter((p) => (p.chains ?? []).some((x) => x === "Arc" || x.startsWith("Arc-")))
-      .map(toLiveProtocol)
+      .map((p) => toLiveProtocol(p, "defillama"))
       .sort((a, b) => b.tvlUsd - a.tvlUsd);
 
     if (filtered.length > 0) {
@@ -261,7 +268,7 @@ export async function fetchArcProtocols(signal?: AbortSignal): Promise<LiveProto
     console.warn("DeFiLlama upstream fetch failed, using curated Arc fallback snapshot:", (err as Error).message);
   }
 
-  const fallback = FALLBACK_PROTOCOLS.map(toLiveProtocol).sort((a, b) => b.tvlUsd - a.tvlUsd);
+  const fallback = FALLBACK_PROTOCOLS.map((p) => toLiveProtocol(p, "fallback-snapshot")).sort((a, b) => b.tvlUsd - a.tvlUsd);
   cachedResult = { timestamp: now, data: fallback };
   return fallback;
 }

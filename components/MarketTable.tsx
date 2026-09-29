@@ -22,6 +22,9 @@ export interface UnifiedRow {
   coveragePct?: number;
   delta7d: number;
   tvlUsd: number;
+  /** Live DeFiLlama TVL when we have a verified mapping; null means the row
+   *  is showing the stored analyst snapshot, which is labelled as such. */
+  liveTvlUsd?: number | null;
   apy: number | null;
   yieldNote?: string;
   updatedAt: string;
@@ -72,6 +75,10 @@ export function MarketTable({
         coveragePct: Math.round(scr.coverage * 100),
         delta7d: l.change7d,
         tvlUsd: l.tvlUsd,
+        // Discovered rows come straight from DeFiLlama -- but only when the
+        // fetch actually succeeded. When it did not, discover.ts hands back the
+        // curated fallback, which is hardcoded and must not be labelled live.
+        liveTvlUsd: l.source === "defillama" ? l.tvlUsd : null,
         apy: null,
         yieldNote: "Live telemetry",
         updatedAt: l.fetchedAt,
@@ -333,9 +340,26 @@ export function MarketTable({
                   {typeof item.delta7d === "number" ? item.delta7d.toFixed(1) : item.delta7d}%
                 </td>
 
-                {/* Arc TVL */}
+                {/* Arc TVL. `tvlSource` is honest about where the number came from:
+                    a live DeFiLlama reading, or the stored analyst snapshot. The
+                    stored values drifted by up to 100% before this existed. */}
                 <td className="num py-4 pr-6 font-mono text-[12px] text-paper/90 font-medium">
-                  {formatUsd(item.tvlUsd)}
+                  {formatUsd(item.liveTvlUsd ?? item.tvlUsd)}
+                  {item.liveTvlUsd == null ? (
+                    <span
+                      className="mt-0.5 block text-[10px] uppercase tracking-wider text-faint"
+                      title={`Analyst snapshot from ${item.updatedAt?.slice(0, 10) ?? "review date"} — not live`}
+                    >
+                      snapshot
+                    </span>
+                  ) : (
+                    <span
+                      className="mt-0.5 block text-[10px] uppercase tracking-wider text-reserve/70"
+                      title="Live from DeFiLlama"
+                    >
+                      live
+                    </span>
+                  )}
                 </td>
 
                 {/* Yield / Utility */}

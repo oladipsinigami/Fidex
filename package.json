@@ -11,6 +11,7 @@
     "test:attest": "node scripts/test-attestation.mjs",
     "test:contracts": "node scripts/test-contracts.mjs",
     "audit:staleness": "node scripts/audit-staleness.mjs",
+    "verify:drift": "node --experimental-strip-types scripts/check-drift.mjs",
     "verify:payments": "node scripts/verify-payment.mjs",
     "verify:onchain": "node scripts/test-onchain-verify.mjs",
     "verify:leak": "node scripts/check-ssr-leak.mjs",
