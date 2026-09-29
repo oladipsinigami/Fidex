@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
-import { DatabaseSync } from "node:sqlite";
+import { createClient, type Client } from "@libsql/client";
 
 export interface StoredReceipt {
   id: string;
@@ -25,49 +25,96 @@ export interface StoredAttestation {
   timestamp: number;
 }
 
-let dbInstance: DatabaseSync | null = null;
+export interface StoredVerification {
+  slug: string;
+  verifiedAt: number;
+  status: string;
+  details?: string;
+}
+
+let dbPromise: Promise<Client> | null = null;
 
 /**
  * Open the durable receipt/attestation store.
  *
- * This THROWS if the file store is unavailable. It deliberately has no
- * in-memory fallback: an ephemeral database would silently discard the
- * `UNIQUE(tx_hash)` constraint the moment the process restarted, so a replayed
- * transaction hash would be accepted a second time and mint a second free
- * receipt. That is the exact "zero free bypass" guarantee the product claims,
- * so a deployment that cannot honour it must fail loudly rather than pretend.
- *
- * Serverless and read-only filesystems (Vercel functions, most container
- * platforms) cannot host a file SQLite database. Those deployments must point
- * `ARCGRADE_DB_PATH` at a durable volume, or replace this module with a real
- * networked store -- see the README's "Durable storage" section.
+ * Supports:
+ * 1. Cloud Turso (LibSQL over HTTP): when TURSO_DATABASE_URL or LIBSQL_URL is set.
+ *    This allows zero-ops serverless deployment (e.g. on Vercel) while keeping
+ *    strict atomic UNIQUE constraints in the cloud.
+ * 2. Local persistent SQLite file: when running locally or on a persistent VM.
+ *    Reads from FIDEX_DB_PATH, ARCGRADE_DB_PATH, or defaults to data/fidex.db.
  */
-function getDb(): DatabaseSync {
-  if (dbInstance) return dbInstance;
+async function initDb(): Promise<Client> {
+  const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOKEN;
 
-  const dbPath = process.env.FIDEX_DB_PATH
-    ? path.resolve(process.env.FIDEX_DB_PATH)
-    : process.env.ARCGRADE_DB_PATH
-    ? path.resolve(process.env.ARCGRADE_DB_PATH)
-    : path.join(process.cwd(), "data", "fidex.db");
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-  // If migrating from legacy arcgrade.db to fidex.db
-  const legacyPath = path.join(process.cwd(), "data", "arcgrade.db");
-  if (dbPath.endsWith("fidex.db") && !fs.existsSync(dbPath) && fs.existsSync(legacyPath)) {
-    try {
-      fs.copyFileSync(legacyPath, dbPath);
-    } catch {}
+  /**
+   * Fail closed on a serverless host with no remote store.
+   *
+   * A local file in /tmp opens successfully, so nothing errors and nothing is
+   * logged: each warm lambda gets its own private database, and the
+   * UNIQUE(tx_hash) constraint that blocks replay exists only inside that one
+   * instance. A replayed payment hash would then be accepted a second time and
+   * mint a second free receipt -- silently, with no visible symptom, which is
+   * the exact guarantee this table exists to provide.
+   *
+   * So on Vercel or Lambda, a missing Turso URL is a deployment error, not a
+   * reason to degrade. The same shape as the ARCGRADE_SECRET guard in
+   * lib/unlock.ts.
+   */
+  if (isServerless && !tursoUrl) {
+    throw new Error(
+      "[Fidex FATAL] TURSO_DATABASE_URL (or LIBSQL_URL) is required on a serverless host. " +
+        "A local file would be ephemeral and unique per instance, so replay protection " +
+        "would not hold and paid content could be unlocked repeatedly with one payment.",
+    );
   }
 
-  const db = new DatabaseSync(dbPath);
-  // Enable WAL mode for high concurrency across Next.js worker threads
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA synchronous = NORMAL;");
+  let client: Client;
 
-  // Receipts table with strict UNIQUE(tx_hash) constraint
-  db.exec(`
+  if (tursoUrl) {
+    client = createClient({
+      url: tursoUrl,
+      authToken,
+    });
+  } else {
+    const defaultDbPath = path.join(process.cwd(), "data", "fidex.db");
+
+    const rawPath = process.env.FIDEX_DB_PATH
+      ? path.resolve(process.env.FIDEX_DB_PATH)
+      : process.env.ARCGRADE_DB_PATH
+      ? path.resolve(process.env.ARCGRADE_DB_PATH)
+      : defaultDbPath;
+
+    fs.mkdirSync(path.dirname(rawPath), { recursive: true });
+
+    // In serverless /tmp or local fallback, copy seed database if present
+    const seedPath = path.join(process.cwd(), "data", "fidex.db");
+    const legacyPath = path.join(process.cwd(), "data", "arcgrade.db");
+    if (!fs.existsSync(rawPath)) {
+      if (fs.existsSync(seedPath)) {
+        try {
+          fs.copyFileSync(seedPath, rawPath);
+        } catch {}
+      } else if (fs.existsSync(legacyPath)) {
+        try {
+          fs.copyFileSync(legacyPath, rawPath);
+        } catch {}
+      }
+    }
+
+    // Windows or Unix file path formatted as LibSQL file URL
+    const fileUrl = `file:${rawPath.replace(/\\/g, "/")}`;
+    client = createClient({ url: fileUrl });
+
+    // Busy timeout for local concurrency
+    await client.execute("PRAGMA busy_timeout = 5000;").catch(() => {});
+  }
+
+  // Initialize schema with strict UNIQUE(tx_hash) constraint
+  await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS receipts (
       id TEXT PRIMARY KEY,
       slug TEXT NOT NULL,
@@ -82,10 +129,7 @@ function getDb(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_receipts_tx ON receipts(tx_hash);
     CREATE INDEX IF NOT EXISTS idx_receipts_slug ON receipts(slug);
-  `);
 
-  // Analyst EIP-712 attestations table
-  db.exec(`
     CREATE TABLE IF NOT EXISTS attestations (
       id TEXT PRIMARY KEY,
       slug TEXT NOT NULL,
@@ -96,20 +140,47 @@ function getDb(): DatabaseSync {
       timestamp INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_attestations_slug ON attestations(slug);
-  `);
 
-  // Automated watchdog verification stamps table
-  db.exec(`
     CREATE TABLE IF NOT EXISTS verifications (
       slug TEXT PRIMARY KEY,
       verified_at INTEGER NOT NULL,
       status TEXT NOT NULL,
       details TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS bytecode_baselines (
+      slug      TEXT NOT NULL,
+      address   TEXT NOT NULL,
+      network   TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      code_size INTEGER NOT NULL,
+      seen_at   INTEGER NOT NULL,
+      PRIMARY KEY (slug, address, network)
+    );
+
+    CREATE TABLE IF NOT EXISTS bytecode_flags (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug        TEXT NOT NULL,
+      address     TEXT NOT NULL,
+      network     TEXT NOT NULL,
+      from_hash   TEXT NOT NULL,
+      to_hash     TEXT NOT NULL,
+      observed_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bytecode_flags_slug ON bytecode_flags(slug);
   `);
 
-  dbInstance = db;
-  return db;
+  return client;
+}
+
+export function getDb(): Promise<Client> {
+  if (!dbPromise) {
+    dbPromise = initDb().catch((err) => {
+      dbPromise = null;
+      throw err;
+    });
+  }
+  return dbPromise;
 }
 
 /**
@@ -117,25 +188,25 @@ function getDb(): DatabaseSync {
  *
  * Throws if the store is unavailable, so a caller can distinguish "not spent"
  * from "cannot tell". Callers on the payment path MUST treat an error as a
- * rejection: reporting "not spent" for an unreachable database would hand out
- * a free receipt.
+ * rejection.
  */
-export function isTxHashUsed(txHash: string): boolean {
-  const db = getDb();
-  const stmt = db.prepare("SELECT id FROM receipts WHERE tx_hash = ?");
-  const row = stmt.get(txHash.toLowerCase());
-  return Boolean(row);
+export async function isTxHashUsed(txHash: string): Promise<boolean> {
+  const db = await getDb();
+  const res = await db.execute({
+    sql: "SELECT id FROM receipts WHERE tx_hash = ?",
+    args: [txHash.toLowerCase()],
+  });
+  return res.rows.length > 0;
 }
 
 /**
  * Atomically records an unlock payment.
  *
- * Fails closed: an unreachable store, an unwritable filesystem, or a duplicate
- * transaction hash all return `{ ok: false }` rather than a receipt. The
- * duplicate check is enforced by the UNIQUE constraint, not a read-then-write,
- * so two concurrent requests cannot both win.
+ * Fails closed: an unreachable store, an unwritable database, or a duplicate
+ * transaction hash all return { ok: false } rather than a receipt. The
+ * duplicate check is enforced by the database's UNIQUE constraint.
  */
-export function recordReceipt(data: {
+export async function recordReceipt(data: {
   slug: string;
   scope: string;
   payer: string;
@@ -144,43 +215,44 @@ export function recordReceipt(data: {
   network: string;
   mode: string;
   ttlSeconds: number;
-}): { ok: true; id: string } | { ok: false; reason: string } {
+}): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   const id = `rcpt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const now = Date.now();
   const expiresAt = now + data.ttlSeconds * 1000;
   const normalizedHash = data.txHash.toLowerCase();
 
-  let db: DatabaseSync;
+  let db: Client;
   try {
-    db = getDb();
+    db = await getDb();
   } catch (err: unknown) {
     return { ok: false, reason: `receipt_store_unavailable: ${(err as Error).message}` };
   }
 
   try {
-    const stmt = db.prepare(`
-      INSERT INTO receipts (
-        id, slug, scope, payer, tx_hash, amount, network, mode, created_at, expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      id,
-      data.slug,
-      data.scope,
-      data.payer.toLowerCase(),
-      normalizedHash,
-      data.amount,
-      data.network,
-      data.mode,
-      now,
-      expiresAt,
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO receipts (
+          id, slug, scope, payer, tx_hash, amount, network, mode, created_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        id,
+        data.slug,
+        data.scope,
+        data.payer.toLowerCase(),
+        normalizedHash,
+        data.amount,
+        data.network,
+        data.mode,
+        now,
+        expiresAt,
+      ],
+    });
 
     return { ok: true, id };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("UNIQUE constraint failed")) {
+    if (msg.includes("UNIQUE constraint failed") || msg.includes("SQLITE_CONSTRAINT")) {
       return { ok: false, reason: "transaction_already_spent" };
     }
     return { ok: false, reason: msg };
@@ -188,16 +260,14 @@ export function recordReceipt(data: {
 }
 
 /** Fetch an active receipt by transaction hash. Read-only, so errors degrade to null. */
-export function getReceiptByTx(txHash: string): StoredReceipt | null {
-  let db: DatabaseSync;
+export async function getReceiptByTx(txHash: string): Promise<StoredReceipt | null> {
   try {
-    db = getDb();
-  } catch {
-    return null;
-  }
-  try {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE tx_hash = ?");
-    const row = stmt.get(txHash.toLowerCase()) as Record<string, unknown> | undefined;
+    const db = await getDb();
+    const res = await db.execute({
+      sql: "SELECT * FROM receipts WHERE tx_hash = ?",
+      args: [txHash.toLowerCase()],
+    });
+    const row = res.rows[0];
     if (!row) return null;
 
     return {
@@ -218,39 +288,40 @@ export function getReceiptByTx(txHash: string): StoredReceipt | null {
 }
 
 /** Record an analyst cryptographic attestation */
-export function recordAttestation(attestation: {
+export async function recordAttestation(attestation: {
   slug: string;
   letter: string;
   score: number;
   analystAddress: string;
   signature: string;
   timestamp: number;
-}): { ok: true; id: string } | { ok: false; reason: string } {
+}): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   const id = `attest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  let db: DatabaseSync;
+  let db: Client;
   try {
-    db = getDb();
+    db = await getDb();
   } catch (err: unknown) {
     return { ok: false, reason: `attestation_store_unavailable: ${(err as Error).message}` };
   }
 
   try {
-    const stmt = db.prepare(`
-      INSERT INTO attestations (
-        id, slug, letter, score, analyst_address, signature, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      id,
-      attestation.slug,
-      attestation.letter,
-      attestation.score,
-      attestation.analystAddress.toLowerCase(),
-      attestation.signature,
-      attestation.timestamp,
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO attestations (
+          id, slug, letter, score, analyst_address, signature, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        id,
+        attestation.slug,
+        attestation.letter,
+        attestation.score,
+        attestation.analystAddress.toLowerCase(),
+        attestation.signature,
+        attestation.timestamp,
+      ],
+    });
 
     return { ok: true, id };
   } catch (err: unknown) {
@@ -260,13 +331,15 @@ export function recordAttestation(attestation: {
 }
 
 /** Get all attestations for a protocol. Read-only, so errors degrade to an empty list. */
-export function getAttestations(slug: string): StoredAttestation[] {
+export async function getAttestations(slug: string): Promise<StoredAttestation[]> {
   try {
-    const db = getDb();
-    const stmt = db.prepare("SELECT * FROM attestations WHERE slug = ? ORDER BY timestamp DESC");
-    const rows = stmt.all(slug) as Record<string, unknown>[];
+    const db = await getDb();
+    const res = await db.execute({
+      sql: "SELECT * FROM attestations WHERE slug = ? ORDER BY timestamp DESC",
+      args: [slug],
+    });
 
-    return rows.map((r) => ({
+    return res.rows.map((r) => ({
       id: String(r.id),
       slug: String(r.slug),
       letter: String(r.letter),
@@ -280,47 +353,41 @@ export function getAttestations(slug: string): StoredAttestation[] {
   }
 }
 
-export interface StoredVerification {
-  slug: string;
-  verifiedAt: number;
-  status: string;
-  details?: string;
-}
-
 /**
  * Record an automated watchdog stamp.
- *
- * The default is deliberately NOT "healthy". Chain liveness is not a risk
- * review, and a stamp that claims more than it checked is the thing this
- * whole path exists to avoid. Callers must state what was actually verified.
  */
-export function recordVerification(
+export async function recordVerification(
   slug: string,
   status = "operational",
   details = "Chain liveness only. No audit, exploit, reserve or admin-key review performed.",
-): void {
+): Promise<void> {
   try {
-    const db = getDb();
-    const stmt = db.prepare(`
-      INSERT INTO verifications (slug, verified_at, status, details)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(slug) DO UPDATE SET
-        verified_at = excluded.verified_at,
-        status = excluded.status,
-        details = excluded.details
-    `);
-    stmt.run(slug, Date.now(), status, details);
+    const db = await getDb();
+    await db.execute({
+      sql: `
+        INSERT INTO verifications (slug, verified_at, status, details)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(slug) DO UPDATE SET
+          verified_at = excluded.verified_at,
+          status = excluded.status,
+          details = excluded.details
+      `,
+      args: [slug, Date.now(), status, details],
+    });
   } catch (err) {
     console.error("Failed to record verification stamp:", err);
   }
 }
 
 /** Get the latest automated verification for a protocol */
-export function getLatestVerification(slug: string): StoredVerification | null {
+export async function getLatestVerification(slug: string): Promise<StoredVerification | null> {
   try {
-    const db = getDb();
-    const stmt = db.prepare("SELECT * FROM verifications WHERE slug = ?");
-    const row = stmt.get(slug) as Record<string, unknown> | undefined;
+    const db = await getDb();
+    const res = await db.execute({
+      sql: "SELECT * FROM verifications WHERE slug = ?",
+      args: [slug],
+    });
+    const row = res.rows[0];
     if (!row) return null;
     return {
       slug: String(row.slug),
@@ -335,30 +402,18 @@ export function getLatestVerification(slug: string): StoredVerification | null {
 
 /**
  * The effective last-reviewed timestamp for a protocol.
- *
- * Only two things may advance it:
- *   1. `updatedAt` in the data file, which an analyst sets when they actually
- *      re-review the axes.
- *   2. A signed EIP-712 analyst attestation, which is a cryptographic claim
- *      by a named analystId and therefore carries the same weight as (1).
- *
- * An automated watchdog stamp deliberately does NOT count. The watchdog only
- * proves the chain is reachable; it reviews no audits, exploits, reserves or
- * admin keys. Letting its stamp win the max() meant a daily CI run reset every
- * rating's freshness clock, so no rating could ever go stale while the product
- * advertised a 7-day SLA it was silently exempting itself from.
- *
- * The stamp is still recorded, and still readable via getLatestVerification --
- * it is an audit log, not a licence to claim the dossier was re-reviewed.
  */
-export function getEffectiveUpdatedAt(slug: string, fallbackIso: string): string {
+export async function getEffectiveUpdatedAt(slug: string, fallbackIso: string): Promise<string> {
   try {
-    const db = getDb();
-    const attStmt = db.prepare("SELECT timestamp FROM attestations WHERE slug = ? ORDER BY timestamp DESC LIMIT 1");
-    const attRow = attStmt.get(slug) as { timestamp: number } | undefined;
+    const db = await getDb();
+    const res = await db.execute({
+      sql: "SELECT timestamp FROM attestations WHERE slug = ? ORDER BY timestamp DESC LIMIT 1",
+      args: [slug],
+    });
+    const attRow = res.rows[0];
 
     const baseTs = new Date(fallbackIso).getTime() || 0;
-    const attTs = attRow?.timestamp || 0;
+    const attTs = (attRow?.timestamp as number) || 0;
 
     const maxTs = Math.max(baseTs, attTs);
     return maxTs > 0 ? new Date(maxTs).toISOString() : fallbackIso;
@@ -367,10 +422,35 @@ export function getEffectiveUpdatedAt(slug: string, fallbackIso: string): string
   }
 }
 
-/** Enriches a protocol with the effective last updated date from the database */
-export function enrichProtocolWithDb<T extends { slug: string; updatedAt: string }>(protocol: T): T {
+/** Enriches a single protocol with the effective last updated date from the database */
+export async function enrichProtocolWithDb<T extends { slug: string; updatedAt: string }>(protocol: T): Promise<T> {
   return {
     ...protocol,
-    updatedAt: getEffectiveUpdatedAt(protocol.slug, protocol.updatedAt),
+    updatedAt: await getEffectiveUpdatedAt(protocol.slug, protocol.updatedAt),
   };
+}
+
+/** Enriches an array of protocols in a single batch query, avoiding N round-trips over the network */
+export async function enrichProtocolsWithDb<T extends { slug: string; updatedAt: string }>(protocols: T[]): Promise<T[]> {
+  try {
+    const db = await getDb();
+    const res = await db.execute("SELECT slug, MAX(timestamp) as timestamp FROM attestations GROUP BY slug");
+    const map = new Map<string, number>();
+    for (const row of res.rows) {
+      if (row.slug && row.timestamp) {
+        map.set(String(row.slug), Number(row.timestamp));
+      }
+    }
+    return protocols.map((p) => {
+      const attTs = map.get(p.slug) ?? 0;
+      const baseTs = new Date(p.updatedAt).getTime() || 0;
+      const maxTs = Math.max(baseTs, attTs);
+      return {
+        ...p,
+        updatedAt: maxTs > 0 ? new Date(maxTs).toISOString() : p.updatedAt,
+      };
+    });
+  } catch {
+    return protocols;
+  }
 }
