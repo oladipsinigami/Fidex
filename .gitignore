@@ -49,5 +49,13 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 
+# Stray files from a bad SQLite path (a database opened on a relative path
+# named after a credentials file). These are empty, but credential-shaped
+# filenames in a public repo trigger secret scanners and confuse reviewers.
+/auth
+/auth-wal
+/auth-shm
+
+
 .vercel
 .env*
