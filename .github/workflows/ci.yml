@@ -58,18 +58,20 @@ jobs:
           version: nightly
 
       # contracts/lib is gitignored: the vendored Foundry dependencies are
-      # third-party source and do not belong in this repository. But
+      # third-party source and does not belong in this repository. But
       # .gitmodules exists without the paths registered as gitlinks, so
       # `submodules: recursive` is a no-op and a fresh checkout has no libs.
       #
-      # Pinned explicitly rather than relying on a bare `forge install`:
-      # foundry.lock keys its entries with Windows separators ("lib\\forge-std"),
-      # so on Linux forge matches nothing and silently installs nothing. These
-      # tags are the same ones foundry.lock records.
+      # Plain clones at pinned tags rather than `forge install`, for two
+      # reasons: foundry.lock keys its entries with Windows separators
+      # ("lib\\forge-std") so forge on Linux matches nothing, and `forge
+      # install` also failed outright against the nightly toolchain. Cloning
+      # removes both problems. forge generates its own remappings from lib/.
       - name: Install Foundry dependencies
         run: |
-          forge install foundry-rs/forge-std@v1.16.2 --root contracts --no-commit
-          forge install OpenZeppelin/openzeppelin-contracts@v5.7.0 --root contracts --no-commit
+          mkdir -p contracts/lib
+          git clone --depth 1 --branch v1.16.2 https://github.com/foundry-rs/forge-std.git contracts/lib/forge-std
+          git clone --depth 1 --branch v5.7.0 https://github.com/OpenZeppelin/openzeppelin-contracts.git contracts/lib/openzeppelin-contracts
           ls contracts/lib
 
       - name: Run Foundry smart contract tests
