@@ -30,13 +30,13 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "ArcGrade — Ratings for USDC allocation",
-    template: "%s · ArcGrade",
+    default: "Fidex — Institutional Risk Ratings for Circle Arc",
+    template: "%s · Fidex",
   },
   description:
     "Risk is part of investing. It should be informed and calculated — before the deposit, not after the exploit. Live risk ratings for DeFi protocols and tokens native to Circle Arc.",
   openGraph: {
-    title: "ArcGrade — Ratings for USDC allocation",
+    title: "Fidex — Institutional Risk Ratings for Circle Arc",
     description:
       "A letter, a score, and a dated dossier. Free letter grade, paid full axis dossier for $0.01 USDC on Arc.",
     type: "website",

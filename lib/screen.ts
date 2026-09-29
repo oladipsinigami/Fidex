@@ -6,7 +6,7 @@ import type { AxisId, Letter, LiveProtocol } from "./types";
 /**
  * Screening grade for auto-discovered protocols.
  *
- * The full ArcGrade composite is multiplicative across the weakest axis, which
+ * The full Fidex composite is multiplicative across the weakest axis, which
  * is the right behaviour when you have read every axis. A public API gives us
  * three of eight. Renormalising the missing five to "average" would be the same
  * error as a naive mean: it silently assumes the protocol is unremarkable in

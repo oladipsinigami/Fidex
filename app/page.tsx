@@ -4,14 +4,15 @@ import { RatingPlate, GradeLetter } from "@/components/RatingPlate";
 import { SearchBox } from "@/components/SearchBox";
 import { MarketTape } from "@/components/MarketTape";
 import { ageLabel, formatUsd } from "@/lib/grade";
+import { enrichProtocolWithDb, enrichProtocolsWithDb } from "@/lib/db";
 import { fetchArcProtocols } from "@/lib/discover";
 
 import { TutorialTrigger } from "@/components/TutorialModal";
 import { WalkthroughTrigger } from "@/components/WalkthroughTour";
 
 export default async function Home() {
-  const featured = featuredProtocol();
-  const tape = byLetterDesc();
+  const featured = await enrichProtocolWithDb(featuredProtocol());
+  const tape = await enrichProtocolsWithDb(byLetterDesc());
   const liveProtocols = await fetchArcProtocols().catch(() => []);
   const liveTvlSum = liveProtocols.reduce((s, p) => s + p.tvlUsd, 0);
   const displayTvl = liveTvlSum > 0 ? liveTvlSum : TOTAL_TVL;

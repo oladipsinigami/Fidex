@@ -4,47 +4,30 @@
  * Verifies that:
  * 1. Receipts are durably stored with atomic UNIQUE constraints on txHash.
  * 2. Replay attack: attempting to record the same txHash a second time is rejected with "transaction_already_spent".
- * 3. Attestation records store analyst address, score, letter, and signature.
+ * 3. isTxHashUsed and getReceiptByTx work accurately.
  *
  * Run with: node scripts/test-db.mjs
  */
 
 import assert from "node:assert";
-import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 
-console.log("=== Running ArcGrade SQLite Persistence & Replay Protection Tests ===\n");
+console.log("=== Running ArcGrade LibSQL / SQLite Persistence & Replay Protection Tests ===\n");
 
 const testDbPath = path.join(process.cwd(), "data", "test-arcgrade.db");
 try { fs.rmSync(testDbPath, { force: true }); } catch {}
 
-const db = new DatabaseSync(testDbPath);
-db.exec("PRAGMA journal_mode = WAL;");
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS receipts (
-    id TEXT PRIMARY KEY,
-    slug TEXT NOT NULL,
-    scope TEXT NOT NULL,
-    payer TEXT NOT NULL,
-    tx_hash TEXT UNIQUE NOT NULL,
-    amount TEXT NOT NULL,
-    network TEXT NOT NULL,
-    mode TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_receipts_tx ON receipts(tx_hash);
-`);
+process.env.FIDEX_DB_PATH = testDbPath;
+const { recordReceipt, isTxHashUsed, getReceiptByTx } = await import("../lib/db.ts");
 
 let passed = 0;
 let total = 0;
 
-function test(name, fn) {
+async function test(name, fn) {
   total++;
   try {
-    fn();
+    await fn();
     console.log(`PASS: ${name}`);
     passed++;
   } catch (err) {
@@ -53,69 +36,46 @@ function test(name, fn) {
   }
 }
 
-test("recordReceipt saves receipt to SQLite", () => {
-  const stmt = db.prepare(`
-    INSERT INTO receipts (
-      id, slug, scope, payer, tx_hash, amount, network, mode, created_at, expires_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    "rcpt_1",
-    "aave-v4-arc",
-    "dossier",
-    "0xbuyer1",
-    "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-    "10000",
-    "eip155:5042002",
-    "onchain",
-    Date.now(),
-    Date.now() + 86400000
-  );
+await test("recordReceipt saves receipt to database", async () => {
+  const res = await recordReceipt({
+    slug: "aave-v4-arc",
+    scope: "dossier",
+    payer: "0xbuyer1",
+    txHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    amount: "10000",
+    network: "eip155:5042002",
+    mode: "onchain",
+    ttlSeconds: 86400,
+  });
+  assert.strictEqual(res.ok, true);
 
-  const getStmt = db.prepare("SELECT * FROM receipts WHERE tx_hash = ?");
-  const row = getStmt.get("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
-  assert(row !== undefined);
+  const row = await getReceiptByTx("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
+  assert(row !== null);
   assert.strictEqual(row.slug, "aave-v4-arc");
   assert.strictEqual(row.amount, "10000");
 });
 
-test("Atomic replay prevention: identical tx_hash throws SQLITE_CONSTRAINT_UNIQUE", () => {
-  const stmt = db.prepare(`
-    INSERT INTO receipts (
-      id, slug, scope, payer, tx_hash, amount, network, mode, created_at, expires_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  let duplicateBlocked = false;
-  try {
-    stmt.run(
-      "rcpt_duplicate_attempt",
-      "morpho-blue", // Even if trying to unlock a different slug!
-      "dossier",
-      "0xattacker",
-      "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-      "10000",
-      "eip155:5042002",
-      "onchain",
-      Date.now(),
-      Date.now() + 86400000
-    );
-  } catch (err) {
-    if (String(err).includes("UNIQUE constraint failed")) {
-      duplicateBlocked = true;
-    }
-  }
-
-  assert.strictEqual(duplicateBlocked, true, "Duplicate tx_hash must be blocked by SQLite unique constraint");
+await test("Atomic replay prevention: identical tx_hash throws and returns transaction_already_spent", async () => {
+  const res = await recordReceipt({
+    slug: "morpho-blue", // Even if trying to unlock a different slug!
+    scope: "dossier",
+    payer: "0xattacker",
+    txHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    amount: "10000",
+    network: "eip155:5042002",
+    mode: "onchain",
+    ttlSeconds: 86400,
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.reason, "transaction_already_spent");
 });
 
-test("Querying spent hash is instantaneous via index", () => {
-  const checkStmt = db.prepare("SELECT id FROM receipts WHERE tx_hash = ?");
-  const exists = checkStmt.get("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
-  assert(Boolean(exists));
+await test("isTxHashUsed correctly detects spent hashes", async () => {
+  const exists = await isTxHashUsed("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
+  assert.strictEqual(exists, true);
 
-  const notExists = checkStmt.get("0x0000000000000000000000000000000000000000000000000000000000000000");
-  assert.strictEqual(notExists, undefined);
+  const notExists = await isTxHashUsed("0x0000000000000000000000000000000000000000000000000000000000000000");
+  assert.strictEqual(notExists, false);
 });
 
 // Clean up test DB

@@ -89,7 +89,7 @@ export function WalkthroughLab() {
             Interactive Walkthrough Lab
           </h2>
           <p className="mt-1 text-[13px] text-quiet">
-            Simulate and test how each ArcGrade feature calculates risk in real time.
+            Simulate and test how each Fidex feature calculates risk in real time.
           </p>
         </div>
 
@@ -129,7 +129,7 @@ export function WalkthroughLab() {
                 Weakest-Link Compounding Demo
               </h3>
               <p className="mt-1 text-[13px] text-quiet">
-                Drag any individual axis down to observe how ArcGrade prevents high liquidity from
+                Drag any individual axis down to observe how Fidex prevents high liquidity from
                 hiding a critical smart contract flaw.
               </p>
             </div>
@@ -396,7 +396,7 @@ export function WalkthroughLab() {
           <div>
             <h3 className="font-display text-lg text-paper">Kill-Shot Stress Simulator</h3>
             <p className="mt-1 text-[13px] text-quiet">
-              Select a catastrophic market scenario to see how ArcGrade triggers downgrade protection.
+              Select a catastrophic market scenario to see how Fidex triggers downgrade protection.
             </p>
           </div>
 
@@ -432,7 +432,7 @@ export function WalkthroughLab() {
                 <strong>Simulated Trigger:</strong> {scenarios[activeScenario].description}
               </p>
               <p className="mt-1 text-sm text-gold font-mono">
-                <strong>ArcGrade Action:</strong> {scenarios[activeScenario].impact}
+                <strong>Fidex Action:</strong> {scenarios[activeScenario].impact}
               </p>
             </div>
           )}

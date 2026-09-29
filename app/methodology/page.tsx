@@ -6,7 +6,7 @@ import { PROTOCOLS } from "@/data/protocols";
 export const metadata: Metadata = {
   title: "Methodology",
   description:
-    "How ArcGrade scores protocols: nine weighted axes, a multiplicative composite across weak links, letter bands, update cadence, and conflict-of-interest policy.",
+    "How Fidex scores protocols: nine weighted axes, a multiplicative composite across weak links, letter bands, update cadence, and conflict-of-interest policy.",
 };
 
 const ORDER = Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[];
@@ -201,7 +201,7 @@ export default function MethodologyPage() {
 
       <footer className="mt-16 border-t border-paper/[0.07] pt-8">
         <p className="max-w-3xl text-[11px] leading-relaxed text-faint">
-          ArcGrade is not financial advice and is not a credit rating agency. It
+          Fidex is not financial advice and is not a credit rating agency. It
           publishes a structured read of how a protocol can fail, not a prediction of
           price or a recommendation to transact. Letters are opinions with published
           reasoning, and opinions can be wrong. Verify anything that matters.

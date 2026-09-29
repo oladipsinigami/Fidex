@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "missing_slug" }, { status: 400 });
   }
 
-  const attestations = getAttestations(slug);
+  const attestations = await getAttestations(slug);
   return NextResponse.json({ slug, attestations });
 }
 
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     }
 
     // Persist verified cryptographic attestation to SQLite
-    const result = recordAttestation({
+    const result = await recordAttestation({
       slug,
       letter,
       score,

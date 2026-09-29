@@ -31,11 +31,11 @@ if (existsSync(".env.local") && typeof process.loadEnvFile === "function") {
 }
 
 const PORT = 4597;
-const URL = process.env.ARCGRADE_URL ?? `http://127.0.0.1:${PORT}`;
-const SLUG = process.env.SLUG ?? "aave-v4-arc";
-const PAY_TO = process.env.ARCGRADE_PAY_TO;
-// Override with ARCGRADE_TESTNET_RPC if rpc.testnet.arc.io is unreachable.
-const ARC_TESTNET_RPC = process.env.ARCGRADE_TESTNET_RPC ?? "https://rpc.testnet.arc.io";
+const URL = process.env.FIDEX_URL ?? process.env.ARCGRADE_URL ?? `http://127.0.0.1:${PORT}`;
+const SLUG = process.env.FIDEX_SLUG ?? process.env.ARCGRADE_SLUG ?? process.env.SLUG ?? "aave-v4-arc";
+const PAY_TO = process.env.FIDEX_PAY_TO ?? process.env.ARCGRADE_PAY_TO;
+// Override with FIDEX_TESTNET_RPC or ARCGRADE_TESTNET_RPC if rpc.testnet.arc.io is unreachable.
+const ARC_TESTNET_RPC = process.env.FIDEX_TESTNET_RPC ?? process.env.ARCGRADE_TESTNET_RPC ?? "https://rpc.testnet.arc.io";
 
 async function promptKeystorePassword(accountName) {
   // Foundry's own convention: honour the env var so this can run
@@ -233,9 +233,14 @@ const app = spawn(
   {
     env: {
       ...process.env,
-      ARCGRADE_SECRET: process.env.ARCGRADE_SECRET ?? "live-settlement-test-secret",
+      FIDEX_SECRET: process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET ?? "live-settlement-test-secret",
+      FIDEX_X402_MODE: "gateway",
+      FIDEX_NETWORK: "testnet",
+      FIDEX_PUBLIC_URL: URL,
+      ARCGRADE_SECRET: process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET ?? "live-settlement-test-secret",
       ARCGRADE_X402_MODE: "gateway",
       ARCGRADE_NETWORK: "testnet",
+      ARCGRADE_PUBLIC_URL: URL,
       NODE_ENV: "production",
     },
     stdio: "ignore",

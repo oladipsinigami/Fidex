@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { MarketTable, type UnifiedRow } from "@/components/MarketTable";
 import { byLetterDesc, TOTAL_TVL } from "@/data/protocols";
 import { METHODOLOGY_VERSION, formatUsd, isStale } from "@/lib/grade";
-import { enrichProtocolWithDb } from "@/lib/db";
 import { fetchArcProtocols } from "@/lib/discover";
 import { fetchLiveTvl, type Telemetry } from "@/lib/telemetry";
 import { isListable } from "@/lib/screen";

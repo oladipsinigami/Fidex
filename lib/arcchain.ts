@@ -30,15 +30,16 @@ export const ARC = {
   multicall3: "0xcA11bde05977b3631167028862bE2a173976CA11",
 } as const;
 
-export const IS_TESTNET = process.env.NEXT_PUBLIC_ARCGRADE_NETWORK !== "mainnet";
+const activeNetwork = process.env.NEXT_PUBLIC_FIDEX_NETWORK ?? process.env.NEXT_PUBLIC_ARCGRADE_NETWORK;
+export const IS_TESTNET = activeNetwork !== "mainnet";
 
 export function explorerAddress(address: string): string {
-  const base = process.env.NEXT_PUBLIC_ARCGRADE_NETWORK === "mainnet" ? ARC.explorer : ARC.testnetExplorer;
+  const base = activeNetwork === "mainnet" ? ARC.explorer : ARC.testnetExplorer;
   return `${base}/address/${address}`;
 }
 
 export function explorerTx(hash: string): string {
-  const base = process.env.NEXT_PUBLIC_ARCGRADE_NETWORK === "mainnet" ? ARC.explorer : ARC.testnetExplorer;
+  const base = activeNetwork === "mainnet" ? ARC.explorer : ARC.testnetExplorer;
   return `${base}/tx/${hash}`;
 }
 

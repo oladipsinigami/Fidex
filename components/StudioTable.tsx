@@ -208,7 +208,7 @@ function Editor({
         },
       });
 
-      setStatusMsg({ type: "info", text: "Verifying signature & persisting to ArcGrade ledger…" });
+      setStatusMsg({ type: "info", text: "Verifying signature & persisting to Fidex ledger…" });
 
       const res = await fetch("/api/v1/attest", {
         method: "POST",
@@ -331,7 +331,7 @@ function Editor({
             <div className="mt-4 p-4 border border-paper/10 bg-panel/60 rounded-[2px]">
               <div className="flex items-center justify-between text-[11.5px] text-faint mb-2">
                 <span>EIP-712 Domain:</span>
-                <span className="font-mono text-paper">ArcGrade Studio (5042002)</span>
+                <span className="font-mono text-paper">Fidex Studio (5042002)</span>
               </div>
               <div className="flex items-center justify-between text-[11.5px] text-faint mb-2">
                 <span>Connected Analyst:</span>

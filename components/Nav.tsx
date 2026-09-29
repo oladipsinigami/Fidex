@@ -24,10 +24,10 @@ export function Nav() {
           className="group flex items-baseline gap-2.5"
         >
           <span className="font-display text-[19px] font-semibold tracking-[-0.01em] text-paper">
-            ArcGrade
+            Fidex
           </span>
           <span className="label-xs hidden text-faint group-hover:text-gold sm:inline">
-            Ratings for USDC allocation
+            Risk ratings for USDC allocation
           </span>
         </Link>
 
@@ -48,9 +48,10 @@ export function Nav() {
           <TutorialTrigger label="Tutorial" />
           <button
             data-walkthrough="nav-search"
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent("arcgrade:command", { detail: {} }))
-            }
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("fidex:command", { detail: {} }));
+              window.dispatchEvent(new CustomEvent("arcgrade:command", { detail: {} }));
+            }}
             className="label-xs hidden items-center gap-2 rounded-[2px] border border-paper/10 px-2.5 py-1.5 text-faint transition-colors hover:border-gold/40 hover:text-gold lg:inline-flex"
             aria-label="Open command palette"
           >

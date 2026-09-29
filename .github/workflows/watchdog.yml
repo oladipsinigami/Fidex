@@ -1,0 +1,43 @@
+name: Daily Automated Watchdog
+
+on:
+  schedule:
+    # Run every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  telemetry-watchdog:
+    name: Telemetry & Staleness Watchdog
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run automated health and freshness watchdog
+        run: npm run verify:watchdog
+
+      - name: Commit & push updated verification database
+        run: |
+          git config user.name "arcgrade-watchdog[bot]"
+          git config user.email "watchdog@arcgrade.xyz"
+          git add data/arcgrade.db
+          if git diff --cached --quiet; then
+            echo "No database changes to commit."
+          else
+            git commit -m "chore(watchdog): automated telemetry verification renewal [skip ci]"
+            git push
+          fi

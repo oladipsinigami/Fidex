@@ -7,9 +7,9 @@ import { WalkthroughTrigger } from "@/components/WalkthroughTour";
 import { WalkthroughLab } from "@/components/WalkthroughLab";
 
 export const metadata: Metadata = {
-  title: "Tutorial & Guide — How ArcGrade Works",
+  title: "Tutorial & Guide — How Fidex Works",
   description:
-    "Complete breakdown of every feature on ArcGrade: letter grades, the 9 risk axes, kill shots, unlock calendars, x402 nanopayments, and the security gate.",
+    "Complete breakdown of every feature on Fidex: letter grades, the 9 risk axes, kill shots, unlock calendars, x402 nanopayments, and the security gate.",
 };
 
 export default function GuidePage() {
@@ -25,11 +25,11 @@ export default function GuidePage() {
           </div>
         </div>
         <h1 className="mt-4 font-display text-[clamp(2.5rem,5vw,3.75rem)] leading-[1.02] tracking-[-0.02em] text-paper">
-          How ArcGrade Works
+          How Fidex Works
         </h1>
         <p className="mt-4 max-w-2xl text-[16px] leading-relaxed text-quiet">
           A complete, layman-accessible guide explaining every feature, metric, and safety
-          mechanism built into ArcGrade. Learn how we evaluate risk on Circle Arc before you
+          mechanism built into Fidex. Learn how we evaluate risk on Circle Arc before you
           commit your capital.
         </p>
       </header>
@@ -54,7 +54,7 @@ export default function GuidePage() {
             </p>
             <p className="mt-3 text-[13px] leading-relaxed text-faint">
               <strong>The Weakest-Link Rule:</strong> Unlike naive averages that let $500M in trading
-              volume mask a fatal smart contract backdoor, ArcGrade uses multiplicative compounding.
+              volume mask a fatal smart contract backdoor, Fidex uses multiplicative compounding.
               A critical vulnerability in code security or admin keys drags down the entire letter.
             </p>
           </div>
@@ -272,7 +272,7 @@ export default function GuidePage() {
               The 1-Cent ($0.01) Paywall
             </h2>
             <p className="mt-3 text-[14px] leading-relaxed text-quiet">
-              ArcGrade rejects predatory $50/month subscriptions. Instead, you pay exactly{" "}
+              Fidex rejects predatory $50/month subscriptions. Instead, you pay exactly{" "}
               <strong>1 penny ($0.01 USDC)</strong> per dossier using the <strong>x402 protocol</strong>.
             </p>
             <p className="mt-3 text-[13px] leading-relaxed text-faint">
@@ -324,7 +324,7 @@ export default function GuidePage() {
               Ecosystem Ledger & AI Agent API
             </h2>
             <p className="mt-3 text-[14px] leading-relaxed text-quiet">
-              ArcGrade tracks <strong>53+ protocols and assets</strong> across the entire Circle Arc
+              Fidex tracks <strong>53+ protocols and assets</strong> across the entire Circle Arc
               ecosystem—from DEXs and launchpads to bridges and privacy tools.
             </p>
             <p className="mt-3 text-[13px] leading-relaxed text-faint">
@@ -349,7 +349,7 @@ export default function GuidePage() {
                 <span className="label-xs text-gold">API Documentation</span>
                 <h3 className="mt-2 font-display text-base text-paper">Autonomous Agent API</h3>
                 <p className="mt-1 text-[12px] text-quiet">
-                  Code samples for Python, Node.js, and curl to integrate ArcGrade into automated bots.
+                  Code samples for Python, Node.js, and curl to integrate Fidex into automated bots.
                 </p>
                 <span className="link-gold label-xs mt-4 inline-block">Read API Docs &rarr;</span>
               </Link>

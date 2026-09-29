@@ -62,7 +62,7 @@ export function WalletGate({
             <p className="label-xs mt-1 text-gold/80">{category} &middot; Protected Surface</p>
             <p className="mt-2.5 text-[14px] leading-relaxed text-quiet">
               To prevent automated data extraction, bot scraping, and unauthorized exploitation,
-              ArcGrade requires an authenticated Web3 wallet on Circle Arc before decrypting
+              Fidex requires an authenticated Web3 wallet on Circle Arc before decrypting
               ratings, scores, and vulnerability assessments.
             </p>
 

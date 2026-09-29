@@ -7,7 +7,7 @@ import { PROTOCOLS } from "@/data/protocols";
 export const metadata: Metadata = {
   title: "Agent API",
   description:
-    "Query ArcGrade programmatically. A free summary endpoint and an x402-paywalled full grade, settled in USDC on Circle Arc.",
+    "Query Fidex programmatically. A free summary endpoint and an x402-paywalled full grade, settled in USDC on Circle Arc.",
 };
 
 const SUMMARY = `curl -s ${siteUrl("/api/v1/grade/aave-v4-arc/summary")}`;
@@ -28,13 +28,14 @@ const PAID_AUTH = `curl -s ${siteUrl("/api/v1/grade/aave-v4-arc")} \\
 const CHALLENGE = `HTTP/1.1 402 Payment Required
 Content-Type: application/json
 PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOi... (base64)
+X-Fidex-Method: ${METHODOLOGY_VERSION}
 X-ArcGrade-Method: ${METHODOLOGY_VERSION}
 
 {
   "x402Version": 2,
   "resource": {
     "url": "${siteUrl("/api/v1/grade/aave-v4-arc")}",
-    "description": "Full ArcGrade dossier: all nine axes, evidence, citations.",
+    "description": "Full Fidex dossier: all nine axes, evidence, citations.",
     "mimeType": "application/json"
   },
   "accepts": [{
@@ -145,7 +146,7 @@ export default function AgentsPage() {
       <section className="mb-14">
         <h2 className="font-display text-2xl text-paper">Policy</h2>
         <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-quiet">
-          An agent that allocates on ArcGrade data is expected to show the letter to the
+          An agent that allocates on Fidex data is expected to show the letter to the
           user first. A D or F is a refusal prompt, not a suggestion.
         </p>
         <div className="mt-6">

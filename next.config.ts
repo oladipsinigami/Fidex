@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(process.cwd()),
   },
+  serverExternalPackages: ["@libsql/client"],
 };
 
 export default nextConfig;

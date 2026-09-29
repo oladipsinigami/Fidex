@@ -113,69 +113,113 @@ async function initDb(): Promise<Client> {
     await client.execute("PRAGMA busy_timeout = 5000;").catch(() => {});
   }
 
-  // Initialize schema with strict UNIQUE(tx_hash) constraint
-  await client.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS receipts (
-      id TEXT PRIMARY KEY,
-      slug TEXT NOT NULL,
-      scope TEXT NOT NULL,
-      payer TEXT NOT NULL,
-      tx_hash TEXT UNIQUE NOT NULL,
-      amount TEXT NOT NULL,
-      network TEXT NOT NULL,
-      mode TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_receipts_tx ON receipts(tx_hash);
-    CREATE INDEX IF NOT EXISTS idx_receipts_slug ON receipts(slug);
-
-    CREATE TABLE IF NOT EXISTS attestations (
-      id TEXT PRIMARY KEY,
-      slug TEXT NOT NULL,
-      letter TEXT NOT NULL,
-      score INTEGER NOT NULL,
-      analyst_address TEXT NOT NULL,
-      signature TEXT NOT NULL,
-      timestamp INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_attestations_slug ON attestations(slug);
-
-    CREATE TABLE IF NOT EXISTS verifications (
-      slug TEXT PRIMARY KEY,
-      verified_at INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      details TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS bytecode_baselines (
-      slug      TEXT NOT NULL,
-      address   TEXT NOT NULL,
-      network   TEXT NOT NULL,
-      code_hash TEXT NOT NULL,
-      code_size INTEGER NOT NULL,
-      seen_at   INTEGER NOT NULL,
-      PRIMARY KEY (slug, address, network)
-    );
-
-    CREATE TABLE IF NOT EXISTS bytecode_flags (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug        TEXT NOT NULL,
-      address     TEXT NOT NULL,
-      network     TEXT NOT NULL,
-      from_hash   TEXT NOT NULL,
-      to_hash     TEXT NOT NULL,
-      observed_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_bytecode_flags_slug ON bytecode_flags(slug);
-  `);
-
   return client;
+}
+
+/**
+ * Schema, applied idempotently but ONLY when the version marker is missing.
+ *
+ * Previously this ran on every cold start. Against a local file that was free;
+ * against Turso it is a remote HTTP round trip on the first request of every
+ * cold lambda, which is latency nobody needs to pay. A cheap
+ * `SELECT version FROM schema_version` replaces it, and
+ * `scripts/deploy.mjs migrate` can run the same code on demand.
+ */
+export const SCHEMA_VERSION = 3;
+
+const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS schema_version (
+    version    INTEGER PRIMARY KEY,
+    applied_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS receipts (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    payer TEXT NOT NULL,
+    tx_hash TEXT UNIQUE NOT NULL,
+    amount TEXT NOT NULL,
+    network TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_receipts_tx ON receipts(tx_hash);
+  CREATE INDEX IF NOT EXISTS idx_receipts_slug ON receipts(slug);
+
+  CREATE TABLE IF NOT EXISTS attestations (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL,
+    letter TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    analyst_address TEXT NOT NULL,
+    signature TEXT NOT NULL,
+    timestamp INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_attestations_slug ON attestations(slug);
+
+  CREATE TABLE IF NOT EXISTS verifications (
+    slug TEXT PRIMARY KEY,
+    verified_at INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    details TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS bytecode_baselines (
+    slug      TEXT NOT NULL,
+    address   TEXT NOT NULL,
+    network   TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    code_size INTEGER NOT NULL,
+    seen_at   INTEGER NOT NULL,
+    PRIMARY KEY (slug, address, network)
+  );
+
+  CREATE TABLE IF NOT EXISTS bytecode_flags (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug        TEXT NOT NULL,
+    address     TEXT NOT NULL,
+    network     TEXT NOT NULL,
+    from_hash   TEXT NOT NULL,
+    to_hash     TEXT NOT NULL,
+    observed_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_bytecode_flags_slug ON bytecode_flags(slug);
+`;
+
+/** True when the store is already at SCHEMA_VERSION. */
+export async function isSchemaCurrent(client: Client): Promise<boolean> {
+  try {
+    const res = await client.execute("SELECT MAX(version) AS v FROM schema_version");
+    const v = (res.rows?.[0]?.v as number | null) ?? 0;
+    return Number(v) >= SCHEMA_VERSION;
+  } catch {
+    // schema_version does not exist yet.
+    return false;
+  }
+}
+
+/** Apply the schema and stamp the version. Safe to call repeatedly. */
+export async function migrate(client: Client): Promise<boolean> {
+  if (await isSchemaCurrent(client)) return false;
+  await client.executeMultiple(SCHEMA_SQL);
+  await client.execute({
+    sql: "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
+    args: [SCHEMA_VERSION, Date.now()],
+  });
+  return true;
 }
 
 export function getDb(): Promise<Client> {
   if (!dbPromise) {
-    dbPromise = initDb().catch((err) => {
+    dbPromise = initDb().then(async (client) => {
+      await migrate(client).catch((err) => {
+        console.error("[db] schema migration failed:", err);
+        throw err;
+      });
+      return client;
+    }).catch((err) => {
       dbPromise = null;
       throw err;
     });

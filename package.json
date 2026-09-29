@@ -12,6 +12,8 @@
     "test:contracts": "node scripts/test-contracts.mjs",
     "audit:staleness": "node scripts/audit-staleness.mjs",
     "verify:drift": "node --experimental-strip-types scripts/check-drift.mjs",
+    "deploy:doctor": "node scripts/deploy.mjs doctor",
+    "deploy": "node scripts/deploy.mjs all",
     "verify:payments": "node scripts/verify-payment.mjs",
     "verify:onchain": "node scripts/test-onchain-verify.mjs",
     "verify:leak": "node scripts/check-ssr-leak.mjs",
@@ -23,6 +25,7 @@
   },
   "dependencies": {
     "@circle-fin/x402-batching": "^3.5.0",
+    "@libsql/client": "^0.18.0",
     "@tanstack/react-query": "^5.104.0",
     "@x402/core": "^2.27.0",
     "@x402/evm": "^2.27.0",

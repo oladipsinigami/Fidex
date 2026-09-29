@@ -14,5 +14,6 @@ export type ToastPayload = {
  */
 export function toast(payload: ToastPayload) {
   if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<ToastPayload>("fidex:toast", { detail: payload }));
   window.dispatchEvent(new CustomEvent<ToastPayload>("arcgrade:toast", { detail: payload }));
 }

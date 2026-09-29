@@ -10,7 +10,7 @@ export function Footer() {
       <div className="mx-auto max-w-[1120px] px-5 py-12">
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr]">
           <div>
-            <p className="font-display text-xl text-paper">ArcGrade</p>
+            <p className="font-display text-xl text-paper">Fidex</p>
             <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-quiet">
               Risk is part of investing. It should be informed and calculated — before
               the deposit, not after the exploit.
@@ -48,7 +48,7 @@ export function Footer() {
             Methodology {METHODOLOGY_VERSION} &middot; © {year}
           </p>
           <p className="max-w-xl leading-relaxed">
-            Not financial advice. Not a credit rating. ArcGrade publishes a structured
+            Not financial advice. Not a credit rating. Fidex publishes a structured
             read of how a protocol can fail, not a prediction of price. Protocols cannot
             buy a letter.
           </p>

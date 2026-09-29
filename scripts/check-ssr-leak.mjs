@@ -44,7 +44,13 @@ const app = spawn(
   process.execPath,
   ["node_modules/next/dist/bin/next", "start", "-p", String(PORT)],
   {
-    env: { ...process.env, ARCGRADE_SECRET: "ssr-leak-probe", ARCGRADE_PUBLIC_URL: BASE },
+    env: {
+      ...process.env,
+      FIDEX_SECRET: "ssr-leak-probe",
+      ARCGRADE_SECRET: "ssr-leak-probe",
+      FIDEX_PUBLIC_URL: BASE,
+      ARCGRADE_PUBLIC_URL: BASE,
+    },
     stdio: ["ignore", "ignore", "inherit"],
   },
 );
@@ -105,7 +111,7 @@ console.log(
  * has paid must still receive the dossier in the rendered HTML, or the paywall
  * is just a wall.
  */
-const SECRET = process.env.ARCGRADE_SECRET ?? "ssr-leak-probe";
+const SECRET = "ssr-leak-probe";
 const SLUG = "cirbtc";
 const c = corpus.find((x) => x.file === "cirbtc");
 
@@ -118,7 +124,9 @@ const receipt = (() => {
 })();
 
 const paidHtml = await (
-  await fetch(`${BASE}/p/${SLUG}`, { headers: { cookie: `arcgrade_unlock=${receipt}` } })
+  await fetch(`${BASE}/p/${SLUG}`, {
+    headers: { cookie: `fidex_unlock=${receipt}; arcgrade_unlock=${receipt}` },
+  })
 ).text();
 
 const hasDossier = c.dossier ? paidHtml.includes(c.dossier.slice(0, 80)) : false;

@@ -63,14 +63,19 @@ const app = spawn(
   {
     env: {
       ...process.env,
+      FIDEX_SECRET: "erc20-parse-test",
+      FIDEX_PAY_TO: PAY_TO,
+      FIDEX_PUBLIC_URL: BASE,
+      FIDEX_NETWORK: "testnet",
+      FIDEX_TESTNET_RPC: `http://127.0.0.1:${RPC_PORT}`,
+      FIDEX_DB_PATH: path.join(os.tmpdir(), `fidex-onchain-test-${RUN}.db`),
+      FIDEX_X402_MODE: "gateway",
       ARCGRADE_SECRET: "erc20-parse-test",
       ARCGRADE_PAY_TO: PAY_TO,
       ARCGRADE_PUBLIC_URL: BASE,
       ARCGRADE_NETWORK: "testnet",
       ARCGRADE_TESTNET_RPC: `http://127.0.0.1:${RPC_PORT}`,
-      // Throwaway receipt store so this test never pollutes data/arcgrade.db.
       ARCGRADE_DB_PATH: path.join(os.tmpdir(), `arcgrade-onchain-test-${RUN}.db`),
-      // Keep the x402 path out of it: we are exercising the on-chain path.
       ARCGRADE_X402_MODE: "gateway",
     },
     stdio: ["ignore", "ignore", "inherit"],

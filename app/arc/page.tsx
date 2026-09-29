@@ -37,7 +37,7 @@ export default async function ArcUniversePage() {
         Every protocol on Arc
       </h1>
       <p className="mt-6 max-w-2xl text-[14px] leading-relaxed text-quiet">
-        ArcGrade tracks the full set of protocols with deployment on Arc, discovered live
+        Fidex tracks the full set of protocols with deployment on Arc, discovered live
         from the public dataset behind defillama.com/chain/Arc. Nothing here is hand-picked,
         so the coverage figure is the real one &mdash; including the part we have not graded.
       </p>

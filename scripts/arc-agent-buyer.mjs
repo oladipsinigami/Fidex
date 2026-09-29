@@ -481,16 +481,16 @@ function printRawUnlock(data) {
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(`\n${c.bold}${c.cyan}ArcGrade Agent Buyer${c.reset}  ${c.dim}(Arc Testnet · eip155:${ARC_TESTNET.chainId})${c.reset}`);
+  console.log(`\n${c.bold}${c.cyan}Fidex Agent Buyer${c.reset}  ${c.dim}(Arc Testnet · eip155:${ARC_TESTNET.chainId})${c.reset}`);
   console.log(c.dim + "─".repeat(72) + c.reset);
 
   // ── Config ─────────────────────────────────────────────────────────────
-  const slug = process.env.ARCGRADE_SLUG || process.argv[2] || "morpho";
+  const slug = process.env.FIDEX_SLUG || process.env.ARCGRADE_SLUG || process.argv[2] || "morpho";
   const scope = /** @type {"dossier"|"axis"} */ (
-    process.env.ARCGRADE_SCOPE || process.argv[3] || "dossier"
+    process.env.FIDEX_SCOPE || process.env.ARCGRADE_SCOPE || process.argv[3] || "dossier"
   );
-  const axisId = process.env.ARCGRADE_AXIS_ID || undefined;
-  const baseUrl = (process.env.ARCGRADE_URL || "http://localhost:3001").replace(/\/$/, "");
+  const axisId = process.env.FIDEX_AXIS_ID || process.env.ARCGRADE_AXIS_ID || undefined;
+  const baseUrl = (process.env.FIDEX_URL || process.env.ARCGRADE_URL || "http://localhost:3000").replace(/\/$/, "");
   const dryRun = process.env.DRY_RUN === "1";
 
   if (scope !== "dossier" && scope !== "axis") {
@@ -498,7 +498,7 @@ async function main() {
     process.exit(1);
   }
   if (scope === "axis" && !axisId) {
-    fail("scope=axis requires ARCGRADE_AXIS_ID env var");
+    fail("scope=axis requires FIDEX_AXIS_ID (or ARCGRADE_AXIS_ID) env var");
     process.exit(1);
   }
 
@@ -558,7 +558,7 @@ async function main() {
   step(2, "Validate challenge");
 
   if (!recipient) {
-    fail("No recipient address in challenge — cannot pay. Check that ARCGRADE_PAY_TO is set server-side.");
+    fail("No recipient address in challenge — cannot pay. Check that FIDEX_PAY_TO is set server-side.");
     process.exit(1);
   }
   if (!amount) {

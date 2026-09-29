@@ -1,6 +1,6 @@
 import type { Axis, AxisId, Letter, Protocol } from "./types";
 
-export const METHODOLOGY_VERSION = "arcgrade/1.4.0";
+export const METHODOLOGY_VERSION = "fidex/1.4.0";
 
 /** Grades visually expire after 7 days without a refresh. */
 export const STALE_AFTER_DAYS = 7;

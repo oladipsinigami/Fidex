@@ -10,7 +10,8 @@ import { Paywall } from "@/components/Paywall";
 import { DecisionCard } from "@/components/DecisionCard";
 import { AgentSnippet } from "@/components/AgentSnippet";
 import { ageLabel, formatUsd, isStale, toneFor } from "@/lib/grade";
-import { COOKIE, unlocks, verifyReceipt } from "@/lib/unlock";
+import { enrichProtocolWithDb } from "@/lib/db";
+import { COOKIE, LEGACY_COOKIE, unlocks, verifyReceipt } from "@/lib/unlock";
 import { fetchArcProtocols, fmtShort } from "@/lib/discover";
 import { screen } from "@/lib/screen";
 import { WalletGate } from "@/components/WalletGate";
@@ -31,7 +32,7 @@ export async function generateMetadata({
       title: `${p.name} — ${p.letter} (${p.score})`,
       description: p.verdict,
       openGraph: {
-        title: `${p.name} rates ${p.letter} · ${p.score}/100 on ArcGrade`,
+        title: `${p.name} rates ${p.letter} · ${p.score}/100 on Fidex`,
         description: p.verdict,
       },
     };
@@ -55,16 +56,17 @@ export default async function ProtocolPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const p = getProtocol(slug);
-  if (!p) {
+  const rawP = getProtocol(slug);
+  if (!rawP) {
     const liveList = await fetchArcProtocols().catch(() => []);
     const live = liveList.find((x) => x.slug === slug);
     if (!live) notFound();
     return <LiveProtocolView p={live} />;
   }
+  const p = await enrichProtocolWithDb(rawP);
 
   const jar = await cookies();
-  const paid = unlocks(verifyReceipt(jar.get(COOKIE)?.value), p.slug);
+  const paid = unlocks(verifyReceipt(jar.get(COOKIE)?.value ?? jar.get(LEGACY_COOKIE)?.value), p.slug);
   const stale = isStale(p);
   const tone = toneFor(p.letter);
   const seen = new Set<string>();
@@ -132,7 +134,7 @@ function Header({ p }: { p: Protocol }) {
               <span>Not a Live Vault</span>
             </div>
             <p className="mt-1 text-xs text-quiet leading-relaxed">
-              EmberYield Farm is a synthetic threat-model reference asset maintained to verify that ArcGrade compounding algorithms immediately detect and mathematically penalize unsustainable emissions-funded yields down to Grade F.
+              EmberYield Farm is a synthetic threat-model reference asset maintained to verify that Fidex compounding algorithms immediately detect and mathematically penalize unsustainable emissions-funded yields down to Grade F.
             </p>
           </div>
         )}
@@ -324,7 +326,7 @@ function Disclaimer({ p }: { p: Protocol }) {
   return (
     <div className="mx-auto max-w-[1120px] px-5 pb-16">
       <p className="border-t border-paper/[0.07] pt-6 text-[11px] leading-relaxed text-faint">
-        ArcGrade is not financial advice and not a credit rating. It publishes a
+        Fidex is not financial advice and not a credit rating. It publishes a
         structured read of structural risk as of {ageLabel(p.updatedAt)}, under
         methodology {p.methodologyVersion}. Protocols cannot purchase a letter; they may
         pay for a listing slot and a faster review queue, neither of which affects the
@@ -482,7 +484,7 @@ function LiveProtocolView({ p }: { p: LiveProtocol }) {
               <div className="plate p-7">
                 <h3 className="font-display text-lg text-paper">Screening Coverage</h3>
                 <p className="mt-2 text-[13px] leading-relaxed text-quiet">
-                  ArcGrade requires at least 60% of compounding axis weight before publishing a formal letter. This protocol currently has {scr.measuredCount} of 8 compounding axes backed by public telemetry.
+                  Fidex requires at least 60% of compounding axis weight before publishing a formal letter. This protocol currently has {scr.measuredCount} of 8 compounding axes backed by public telemetry.
                 </p>
                 <div className="mt-5">
                   <div className="flex justify-between text-[11px] font-mono text-faint">

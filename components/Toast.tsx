@@ -24,8 +24,12 @@ export function ToastHost() {
       setItems((xs) => [...xs, { ...detail, id }]);
       window.setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), 6000);
     };
+    window.addEventListener("fidex:toast", onToast);
     window.addEventListener("arcgrade:toast", onToast);
-    return () => window.removeEventListener("arcgrade:toast", onToast);
+    return () => {
+      window.removeEventListener("fidex:toast", onToast);
+      window.removeEventListener("arcgrade:toast", onToast);
+    };
   }, []);
 
   if (items.length === 0) return null;

@@ -15,10 +15,10 @@ import { spawn } from "node:child_process";
 import { privateKeyToAccount } from "viem/accounts";
 
 const ATTESTATION_DOMAIN = {
-  name: "ArcGrade Studio",
+  name: "Fidex Studio",
   version: "1",
   chainId: 5042002,
-  verifyingContract: process.env.NEXT_PUBLIC_ARCGRADE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000",
+  verifyingContract: process.env.NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS || process.env.NEXT_PUBLIC_ARCGRADE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000",
 };
 
 const ATTESTATION_TYPES = {
@@ -58,7 +58,9 @@ if (!isRunning) {
         // hardcoded 32-byte value that had also been pasted into the README,
         // i.e. the real receipt-signing key. Never hardcode a secret here: a
         // missing secret must fall through to .env.local or fail loudly.
+        FIDEX_SECRET: process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET ?? "attestation-test-only-not-a-real-key",
         ARCGRADE_SECRET: process.env.ARCGRADE_SECRET ?? "attestation-test-only-not-a-real-key",
+        FIDEX_PUBLIC_URL: BASE_URL,
         ARCGRADE_PUBLIC_URL: BASE_URL,
       },
       stdio: ["ignore", "ignore", "inherit"],
@@ -95,7 +97,7 @@ if (!isRunning) {
 }
 
 try {
-  console.log("=== Running ArcGrade EIP-712 Cryptographic Attestation Tests ===\n");
+  console.log("=== Running Fidex EIP-712 Cryptographic Attestation Tests ===\n");
 
   // Ephemeral test analyst account
   const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";

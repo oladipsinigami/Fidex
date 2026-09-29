@@ -76,7 +76,7 @@ contract ArcGradeRegistry is EIP712 {
 
     // --- Constructor ---
 
-    constructor() EIP712("ArcGrade Studio", "1") {}
+    constructor() EIP712("Fidex Studio", "1") {}
 
     // --- Attestation Functions ---
 

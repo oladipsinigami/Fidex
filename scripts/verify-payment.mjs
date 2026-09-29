@@ -55,7 +55,10 @@ const facilitator = createServer((req, res) => {
 
 const setMode = (m) => writeFileSync(MODE_FILE, m);
 
-const NET = process.env.ARCGRADE_NETWORK === "testnet" ? "eip155:5042002" : "eip155:5042";
+const NET =
+  (process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK) === "testnet"
+    ? "eip155:5042002"
+    : "eip155:5042";
 const SELLER = "0x1111111111111111111111111111111111111111";
 
 const results = [];
@@ -127,13 +130,17 @@ const app = spawn(
   {
     env: {
       ...process.env,
+      FIDEX_SECRET: "test-secret-for-fail-closed-suite",
+      FIDEX_FACILITATOR_URL: `http://127.0.0.1:${PORT_FAC}`,
+      FIDEX_PAY_TO: "0x1111111111111111111111111111111111111111",
+      FIDEX_X402_MODE: "http",
+      FIDEX_NETWORK: process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK ?? "mainnet",
+      FIDEX_PUBLIC_URL: `http://127.0.0.1:${PORT_APP}`,
       ARCGRADE_SECRET: "test-secret-for-fail-closed-suite",
       ARCGRADE_FACILITATOR_URL: `http://127.0.0.1:${PORT_FAC}`,
       ARCGRADE_PAY_TO: "0x1111111111111111111111111111111111111111",
       ARCGRADE_X402_MODE: "http",
       ARCGRADE_NETWORK: process.env.ARCGRADE_NETWORK ?? "mainnet",
-      // `next start` runs with NODE_ENV=production, where this is required:
-      // it becomes the x402 `resource` URL.
       ARCGRADE_PUBLIC_URL: `http://127.0.0.1:${PORT_APP}`,
     },
     stdio: "ignore",
@@ -210,7 +217,7 @@ try {
   setMode("ok");
   r = await postUnlock({ "payment-signature": goodHeader });
   check("valid settled payment mints a receipt (200)", r.status === 200, `status=${r.status}`);
-  check("receipt cookie issued", Boolean(r.cookie && r.cookie.includes("arcgrade_unlock")));
+  check("receipt cookie issued", Boolean(r.cookie && (r.cookie.includes("fidex_unlock") || r.cookie.includes("arcgrade_unlock"))));
   check(
     "PAYMENT-RESPONSE settlement header present",
     Boolean(r.paymentResponse),
@@ -259,6 +266,13 @@ try {
     {
       env: {
         ...process.env,
+        FIDEX_SECRET: "test-secret-for-fail-closed-suite",
+        FIDEX_FACILITATOR_URL: `http://127.0.0.1:${PORT_FAC}`,
+        FIDEX_PAY_TO: "0x1111111111111111111111111111111111111111",
+        FIDEX_X402_MODE: "http",
+        FIDEX_NETWORK: process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK ?? "mainnet",
+        FIDEX_PUBLIC_URL: `http://127.0.0.1:${BLOCKED_PORT}`,
+        FIDEX_DB_PATH: blockedDbPath,
         ARCGRADE_SECRET: "test-secret-for-fail-closed-suite",
         ARCGRADE_FACILITATOR_URL: `http://127.0.0.1:${PORT_FAC}`,
         ARCGRADE_PAY_TO: "0x1111111111111111111111111111111111111111",
@@ -300,6 +314,7 @@ try {
       );
       check(
         "no unlock cookie is issued when the store is unavailable",
+        !(res2.headers.get("set-cookie") ?? "").includes("fidex_unlock") &&
         !(res2.headers.get("set-cookie") ?? "").includes("arcgrade_unlock"),
       );
     }

@@ -1,5 +1,5 @@
 /**
- * The single source of truth for ArcGrade's public origin.
+ * The single source of truth for Fidex's public origin.
  *
  * This exists because the origin was previously hardcoded to
  * `https://arcgrade.xyz` in at least seven places, including the x402
@@ -13,8 +13,25 @@
  * Client components can only read `NEXT_PUBLIC_*`, so the public-prefixed name
  * takes precedence there. The server sees both.
  */
+const vercelHost =
+  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ??
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+  process.env.NEXT_PUBLIC_VERCEL_URL ??
+  process.env.VERCEL_URL;
+
+const vercelOrigin = vercelHost
+  ? vercelHost.startsWith("http")
+    ? vercelHost
+    : `https://${vercelHost}`
+  : undefined;
+
 const RAW =
-  process.env.NEXT_PUBLIC_ARCGRADE_URL ?? process.env.ARCGRADE_PUBLIC_URL ?? "http://localhost:3000";
+  process.env.NEXT_PUBLIC_FIDEX_URL ??
+  process.env.FIDEX_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_ARCGRADE_URL ??
+  process.env.ARCGRADE_PUBLIC_URL ??
+  vercelOrigin ??
+  "http://localhost:3000";
 
 /** Public origin, never with a trailing slash. */
 export const SITE_URL = RAW.replace(/\/+$/, "");

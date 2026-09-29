@@ -25,7 +25,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     title: "Circle Arc Native Risk Desk",
     subtitle: "Built exclusively for USDC-native execution on Circle Arc (Chain 5042002 / 5042).",
     explanation:
-      "ArcGrade sits at the top of the Circle Arc stack. Unlike chains where gas and fees are paid in volatile tokens, Arc operates with native USDC. ArcGrade tracks every protocol and token deploying on Arc.",
+      "Fidex sits at the top of the Circle Arc stack. Unlike chains where gas and fees are paid in volatile tokens, Arc operates with native USDC. Fidex tracks every protocol and token deploying on Arc.",
     selector: '[data-walkthrough="nav-brand"]',
     position: "bottom",
     previewType: "search",
@@ -48,7 +48,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     title: "The Rating Plate & Weakest-Link Grade",
     subtitle: "A letter from A to F, backed by a 0–100 composite score.",
     explanation:
-      "ArcGrade's rating plate operates like a restaurant health grade. Using multiplicative compounding, high TVL cannot mask a critical security vulnerability or unaudited bytecode.",
+      "Fidex's rating plate operates like a restaurant health grade. Using multiplicative compounding, high TVL cannot mask a critical security vulnerability or unaudited bytecode.",
     selector: '[data-walkthrough="rating-plate"]',
     pageUrl: "/",
     position: "left",
@@ -104,7 +104,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     title: "Kill Shots: What Breaks This Grade",
     subtitle: "Pre-identified catastrophe scenarios explained in plain English.",
     explanation:
-      "Instead of burying critical flaws in 60-page PDF audits, ArcGrade highlights explicit failure modes—like bridge lockbox drains or flash liquidations—that would trigger an immediate downgrade or capital loss.",
+      "Instead of burying critical flaws in 60-page PDF audits, Fidex highlights explicit failure modes—like bridge lockbox drains or flash liquidations—that would trigger an immediate downgrade or capital loss.",
     selector: '[data-walkthrough="killshots"]',
     pageUrl: "/p/aave-v4-arc",
     position: "top",
@@ -163,8 +163,12 @@ export function WalkthroughTour() {
       setHasScrolled(false);
     };
 
+    window.addEventListener("fidex:walkthrough", handleStart);
     window.addEventListener("arcgrade:walkthrough", handleStart);
-    return () => window.removeEventListener("arcgrade:walkthrough", handleStart);
+    return () => {
+      window.removeEventListener("fidex:walkthrough", handleStart);
+      window.removeEventListener("arcgrade:walkthrough", handleStart);
+    };
   }, []);
 
   // Keyboard navigation
@@ -462,11 +466,14 @@ export function WalkthroughTrigger({
 }) {
   return (
     <button
-      onClick={() =>
+      onClick={() => {
+        window.dispatchEvent(
+          new CustomEvent("fidex:walkthrough", { detail: { step: startStep } })
+        );
         window.dispatchEvent(
           new CustomEvent("arcgrade:walkthrough", { detail: { step: startStep } })
-        )
-      }
+        );
+      }}
       className="label-xs flex items-center gap-1.5 rounded-[2px] border border-gold/40 bg-gold/[0.12] px-2.5 py-1 text-gold transition-all hover:border-gold hover:bg-gold/[0.22] hover:shadow-[0_0_12px_rgba(229,183,95,0.25)]"
       title="Start Interactive Product Walkthrough"
     >

@@ -16,7 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ARCGRADE_SECRET: 6e0dbbc5533d0f5b27c229242d2be65860167406dd62a11ad2266574e0d270a7
+      # Test-only credential for the fail-closed suites. This is NOT a
+      # deployment secret and must never be reused in production: this repo is
+      # public, so anything committed here is world-readable. Real secrets live
+      # in Vercel env vars and .env.deploy.local, never in this file.
+      ARCGRADE_SECRET: ci-test-secret-not-a-real-credential
       ARCGRADE_PUBLIC_URL: http://127.0.0.1:3000
       ARCGRADE_NETWORK: testnet
       ARCGRADE_PAY_TO: 0xdB99D8C6b401cF97eaE6c835345938edF5299d25

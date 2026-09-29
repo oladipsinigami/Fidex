@@ -38,9 +38,11 @@ export function CommandPalette() {
     };
     const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("fidex:command", onOpen);
     window.addEventListener("arcgrade:command", onOpen);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("fidex:command", onOpen);
       window.removeEventListener("arcgrade:command", onOpen);
     };
   }, []);

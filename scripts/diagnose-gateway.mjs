@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { privateKeyToAccount } from "viem/accounts";
 import { BatchEvmScheme } from "@circle-fin/x402-batching/client";
+import { BatchFacilitatorClient } from "@circle-fin/x402-batching/server";
 
 const PORT = 4595;
 const URL = `http://127.0.0.1:${PORT}`;
@@ -39,10 +40,16 @@ const app = spawn(
   {
     env: {
       ...process.env,
+      FIDEX_SECRET: "diagnose-only",
+      FIDEX_PAY_TO: SELLER,
+      FIDEX_X402_MODE: "gateway",
+      FIDEX_NETWORK: "testnet",
+      FIDEX_PUBLIC_URL: URL,
       ARCGRADE_SECRET: "diagnose-only",
       ARCGRADE_PAY_TO: SELLER,
       ARCGRADE_X402_MODE: "gateway",
       ARCGRADE_NETWORK: "testnet",
+      ARCGRADE_PUBLIC_URL: URL,
     },
     stdio: "ignore",
   },

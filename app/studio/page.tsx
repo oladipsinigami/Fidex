@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StudioTable, type StudioRow } from "@/components/StudioTable";
 import { byLetterDesc } from "@/data/protocols";
 import { METHODOLOGY_VERSION, isStale } from "@/lib/grade";
+import { enrichProtocolsWithDb } from "@/lib/db";
 import { fetchArcProtocols } from "@/lib/discover";
 import { isListable, screen } from "@/lib/screen";
 import { WalletGate } from "@/components/WalletGate";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export const revalidate = 900;
 
 export default async function StudioPage() {
-  const fullProtocols = byLetterDesc();
+  const fullProtocols = await enrichProtocolsWithDb(byLetterDesc());
   const rows: StudioRow[] = fullProtocols.map((p) => ({
     slug: p.slug,
     name: p.name,

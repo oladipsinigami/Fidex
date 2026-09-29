@@ -33,7 +33,7 @@ function compositeOf(axes) {
   return Math.min(100, Math.max(0, Math.round(mean * linkFactor)));
 }
 
-console.log("=== Running ArcGrade Grading Formula Unit Tests ===\n");
+console.log("=== Running Fidex Grading Formula Unit Tests ===\n");
 
 let passed = 0;
 let total = 0;

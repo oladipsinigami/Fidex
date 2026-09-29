@@ -67,7 +67,7 @@ for (const slug of SLUGS) {
     score: body.score,
     updatedAt: body.updatedAt,
     age,
-    headerStale: res.headers.get("x-arcgrade-stale"),
+    headerStale: res.headers.get("x-fidex-stale") ?? res.headers.get("x-arcgrade-stale"),
   });
 }
 

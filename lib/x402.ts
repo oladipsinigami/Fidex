@@ -28,7 +28,7 @@ import { siteUrl } from "./site";
  */
 
 export const AG = {
-  id: "arcgrade.dev/x402",
+  id: "fidex.dev/x402",
   version: "1",
 } as const;
 
@@ -40,11 +40,11 @@ export function priceFor(scope: "dossier" | "axis"): bigint {
   return scope === "dossier" ? PRICE_DOSSIER : PRICE_AXIS;
 }
 
-export const PAY_TO = process.env.ARCGRADE_PAY_TO ?? null;
-export const FACILITATOR = process.env.ARCGRADE_FACILITATOR_URL ?? null;
+export const PAY_TO = process.env.FIDEX_PAY_TO ?? process.env.ARCGRADE_PAY_TO ?? null;
+export const FACILITATOR = process.env.FIDEX_FACILITATOR_URL ?? process.env.ARCGRADE_FACILITATOR_URL ?? null;
 
-const MODE = (process.env.ARCGRADE_X402_MODE ?? "gateway") as "gateway" | "http";
-const IS_TESTNET = (process.env.ARCGRADE_NETWORK ?? "mainnet") === "testnet";
+const MODE = (process.env.FIDEX_X402_MODE ?? process.env.ARCGRADE_X402_MODE ?? "gateway") as "gateway" | "http";
+const IS_TESTNET = (process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK ?? "mainnet") === "testnet";
 
 /** CAIP-2 for the chain we actually accept payments on. */
 export const NETWORK = IS_TESTNET
@@ -120,9 +120,18 @@ export function requirements(price: bigint, resource: string, description: strin
  * configuration, and production refuses to start without it, because a wrong
  * value here is a silent revenue outage rather than a crash.
  */
-if (process.env.NODE_ENV === "production" && !process.env.ARCGRADE_PUBLIC_URL) {
+const hasProductionUrl = Boolean(
+  process.env.FIDEX_PUBLIC_URL ||
+    process.env.ARCGRADE_PUBLIC_URL ||
+    process.env.NEXT_PUBLIC_FIDEX_URL ||
+    process.env.NEXT_PUBLIC_ARCGRADE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL,
+);
+
+if (process.env.NODE_ENV === "production" && !hasProductionUrl) {
   throw new Error(
-    "[ArcGrade FATAL] ARCGRADE_PUBLIC_URL is required in production. It becomes the x402 " +
+    "[Fidex FATAL] FIDEX_PUBLIC_URL (or ARCGRADE_PUBLIC_URL) is required in production. It becomes the x402 " +
       "`resource` URL, which the buyer must echo back to the facilitator; without it every " +
       "challenge advertises an unpayable resource.",
   );
@@ -138,8 +147,8 @@ export function challenge(slug: string, scope: "dossier" | "axis", axisId?: stri
   const resource = resourceFor(slug);
   const description =
     scope === "dossier"
-      ? "Full ArcGrade dossier: all nine axes, evidence, citations."
-      : `ArcGrade single-axis readout: ${axisId}.`;
+      ? "Full Fidex dossier: all nine axes, evidence, citations."
+      : `Fidex single-axis readout: ${axisId}.`;
   return {
     x402Version: 2,
     resource: { url: resource, description, mimeType: "application/json" },

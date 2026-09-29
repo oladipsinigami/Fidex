@@ -19,10 +19,10 @@ const STEPS: Step[] = [
   {
     id: "overview",
     badge: "Step 1 of 7 · Core Concept",
-    title: "What is ArcGrade?",
+    title: "What is Fidex?",
     subtitle: "A safety rating system before you deposit money.",
     explanation:
-      "Think of ArcGrade as a restaurant health inspection letter grade (A, B, C, D, F) or a credit rating (like Moody's or S&P), but built specifically for crypto apps on Circle's Arc blockchain. It analyzes protocols to protect you from hacks, hidden developer backdoors, and unsustainable yields.",
+      "Think of Fidex as a restaurant health inspection letter grade (A, B, C, D, F) or a credit rating (like Moody's or S&P), but built specifically for crypto apps on Circle's Arc blockchain. It analyzes protocols to protect you from hacks, hidden developer backdoors, and unsustainable yields.",
     keyPoints: [
       "Grade A (85–100): Institutional reserve standard (USDC, Morpho, Aave)",
       "Grade B (70–84): Audited, high-liquidity apps with solid safety track records",
@@ -37,7 +37,7 @@ const STEPS: Step[] = [
     title: "The 9 Safety Axes",
     subtitle: "Why liquidity cannot hide a missing audit.",
     explanation:
-      "Unlike simple averages that let high trading volume hide fatal code flaws, ArcGrade scores 9 separate risk dimensions and uses 'weakest link' compounding. If a protocol has $500M in deposits but has zero audits and a single admin master key, its grade drops sharply.",
+      "Unlike simple averages that let high trading volume hide fatal code flaws, Fidex scores 9 separate risk dimensions and uses 'weakest link' compounding. If a protocol has $500M in deposits but has zero audits and a single admin master key, its grade drops sharply.",
     keyPoints: [
       "Code Security (20%) & Audits (14%): Bytecode safety and professional audit reviews",
       "Liquidity Depth (18%): Ability to withdraw without crashing the price",
@@ -66,7 +66,7 @@ const STEPS: Step[] = [
     title: "Unlock Calendars & Insider Float",
     subtitle: "Know when venture capital and team tokens hit the market.",
     explanation:
-      "Many tokens look profitable until early investors unlock millions of cheap tokens and dump them on retail buyers. ArcGrade tracks the exact dates, token quantities, and percentage of float unlocking so you are never blindsided by dilution.",
+      "Many tokens look profitable until early investors unlock millions of cheap tokens and dump them on retail buyers. Fidex tracks the exact dates, token quantities, and percentage of float unlocking so you are never blindsided by dilution.",
     keyPoints: [
       "Exact dates of upcoming vesting epochs",
       "Percentage of liquid market float unlocking",
@@ -80,7 +80,7 @@ const STEPS: Step[] = [
     title: "Wallet-Gated Protection",
     subtitle: "Why dossiers are locked until you connect a wallet.",
     explanation:
-      "To prevent automated scraping, malicious bot extraction, and frontrunning, ArcGrade gates proprietary risk evaluations behind an authenticated Web3 connection. Connecting your Arc wallet verifies you as a human user or authorized agent.",
+      "To prevent automated scraping, malicious bot extraction, and frontrunning, Fidex gates proprietary risk evaluations behind an authenticated Web3 connection. Connecting your Arc wallet verifies you as a human user or authorized agent.",
     keyPoints: [
       "Completely shields ratings and vulnerability data from malicious scrapers",
       "Connects seamlessly with MetaMask, Rabby, or Coinbase Wallet",
@@ -106,9 +106,9 @@ const STEPS: Step[] = [
     id: "agents",
     badge: "Step 7 of 7 · AI Agents & Studio",
     title: "Built for Humans & AI Agents",
-    subtitle: "How autonomous bots query ArcGrade before trading.",
+    subtitle: "How autonomous bots query Fidex before trading.",
     explanation:
-      "ArcGrade is built for the coming era of AI portfolio managers. Autonomous trading bots and python scripts can ping our API, pay 1 cent automatically via the x402 protocol, read the JSON risk grade, and reject high-risk deposits before committing funds.",
+      "Fidex is built for the coming era of AI portfolio managers. Autonomous trading bots and python scripts can ping our API, pay 1 cent automatically via the x402 protocol, read the JSON risk grade, and reject high-risk deposits before committing funds.",
     keyPoints: [
       "REST & x402 API endpoints at /api/v1/grade/[slug]",
       "Analyst Studio at /studio where researchers cryptographically sign ratings",
@@ -124,8 +124,12 @@ export function TutorialModal() {
 
   useEffect(() => {
     const handleOpen = () => setOpen(true);
+    window.addEventListener("fidex:tutorial", handleOpen);
     window.addEventListener("arcgrade:tutorial", handleOpen);
-    return () => window.removeEventListener("arcgrade:tutorial", handleOpen);
+    return () => {
+      window.removeEventListener("fidex:tutorial", handleOpen);
+      window.removeEventListener("arcgrade:tutorial", handleOpen);
+    };
   }, []);
 
   if (!open) return null;
@@ -321,7 +325,7 @@ export function TutorialModal() {
               onClick={next}
               className="flex items-center gap-2 rounded-[2px] border border-gold bg-gold/[0.14] px-5 py-2.5 font-display text-[14px] font-medium text-paper transition-all hover:bg-gold/[0.25]"
             >
-              <span>{isLast ? "Got it, Enter ArcGrade" : "Next Step"}</span>
+              <span>{isLast ? "Got it, Enter Fidex" : "Next Step"}</span>
               {!isLast && <span>&rarr;</span>}
             </button>
           </div>
@@ -335,9 +339,12 @@ export function TutorialModal() {
 export function TutorialTrigger({ label = "Tutorial & Guide" }: { label?: string }) {
   return (
     <button
-      onClick={() => window.dispatchEvent(new CustomEvent("arcgrade:tutorial", { detail: {} }))}
+      onClick={() => {
+        window.dispatchEvent(new CustomEvent("fidex:tutorial", { detail: {} }));
+        window.dispatchEvent(new CustomEvent("arcgrade:tutorial", { detail: {} }));
+      }}
       className="label-xs flex items-center gap-1.5 rounded-[2px] border border-gold/30 bg-gold/[0.08] px-2.5 py-1 text-gold transition-colors hover:border-gold hover:bg-gold/[0.16]"
-      title="Open ArcGrade Interactive Tutorial"
+      title="Open Fidex Interactive Tutorial"
     >
       <span className="font-mono text-xs">?</span>
       <span>{label}</span>

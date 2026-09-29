@@ -7,11 +7,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * whole flow is labelled DEV in the UI.
  */
 const isProduction = process.env.NODE_ENV === "production";
-if (isProduction && !process.env.ARCGRADE_SECRET) {
-  throw new Error("[ArcGrade Security FATAL] ARCGRADE_SECRET is required in production environments to mint cryptographic unlock receipts.");
+const effectiveSecret = process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET;
+if (isProduction && !effectiveSecret) {
+  throw new Error("[Fidex Security FATAL] FIDEX_SECRET (or ARCGRADE_SECRET) is required in production environments to mint cryptographic unlock receipts.");
 }
-const SECRET = process.env.ARCGRADE_SECRET ?? "arcgrade-dev-secret-not-for-production";
-export const DEV_MODE = !process.env.ARCGRADE_SECRET;
+const SECRET = effectiveSecret ?? "fidex-dev-secret-not-for-production";
+export const DEV_MODE = !effectiveSecret;
 
 export type Receipt = {
   slug: string;
@@ -56,7 +57,8 @@ export function verifyReceipt(token: string | undefined): Receipt | null {
   }
 }
 
-export const COOKIE = "arcgrade_unlock";
+export const COOKIE = "fidex_unlock";
+export const LEGACY_COOKIE = "arcgrade_unlock";
 export const UNLOCK_TTL_S = 60 * 60 * 24; // 24h
 
 /** True when this receipt unlocks the requested scope for this slug. */

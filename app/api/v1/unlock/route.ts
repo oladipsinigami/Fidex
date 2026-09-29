@@ -12,7 +12,7 @@ import {
   resourceFor,
   verifyAndSettle,
 } from "@/lib/x402";
-import { COOKIE, DEV_MODE, mintReceipt, UNLOCK_TTL_S } from "@/lib/unlock";
+import { COOKIE, DEV_MODE, LEGACY_COOKIE, mintReceipt, UNLOCK_TTL_S } from "@/lib/unlock";
 
 import { verifyArcTestnetTx } from "@/lib/onchainVerify";
 import { recordReceipt } from "@/lib/db";
@@ -76,8 +76,8 @@ export async function POST(req: Request) {
   const resource = resourceFor(slug);
   const description =
     scope === "dossier"
-      ? "Full ArcGrade dossier: all nine axes, evidence, citations."
-      : `ArcGrade single-axis readout: ${axisId}.`;
+      ? "Full Fidex dossier: all nine axes, evidence, citations."
+      : `Fidex single-axis readout: ${axisId}.`;
 
   let settleTx: string;
   let payer = "";
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
   }
 
   // Atomically persist receipt to durable SQLite storage tying txHash to slug
-  const dbRec = recordReceipt({
+  const dbRec = await recordReceipt({
     slug,
     scope,
     payer,
@@ -146,6 +146,13 @@ export async function POST(req: Request) {
 
   const jar = await cookies();
   jar.set(COOKIE, receipt, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: UNLOCK_TTL_S,
+  });
+  jar.set(LEGACY_COOKIE, receipt, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

@@ -39,12 +39,15 @@ const app = spawn(
   {
     env: {
       ...process.env,
+      FIDEX_SECRET: "challenge-shape-test",
+      FIDEX_PAY_TO: SELLER,
+      FIDEX_X402_MODE: MODE,
+      FIDEX_NETWORK: IS_TESTNET ? "testnet" : "mainnet",
+      FIDEX_PUBLIC_URL: URL,
       ARCGRADE_SECRET: "challenge-shape-test",
       ARCGRADE_PAY_TO: SELLER,
       ARCGRADE_X402_MODE: MODE,
       ARCGRADE_NETWORK: IS_TESTNET ? "testnet" : "mainnet",
-      // Advertised as the x402 `resource`. Must be set because `next start`
-      // runs with NODE_ENV=production, where it is required.
       ARCGRADE_PUBLIC_URL: URL,
     },
     stdio: ["ignore", "ignore", "inherit"],

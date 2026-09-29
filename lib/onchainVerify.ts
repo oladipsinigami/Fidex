@@ -1,8 +1,8 @@
 import { ARC } from "./arcchain";
 import { isTxHashUsed } from "./db";
 
-const isTestnet = (process.env.ARCGRADE_NETWORK ?? "mainnet").toLowerCase() === "testnet";
-const RPC_URL = process.env.ARCGRADE_RPC ?? (isTestnet ? (process.env.ARCGRADE_TESTNET_RPC ?? ARC.testnetRpc) : ARC.rpc);
+const isTestnet = (process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK ?? "mainnet").toLowerCase() === "testnet";
+const RPC_URL = process.env.FIDEX_RPC ?? process.env.ARCGRADE_RPC ?? (isTestnet ? (process.env.FIDEX_TESTNET_RPC ?? process.env.ARCGRADE_TESTNET_RPC ?? ARC.testnetRpc) : ARC.rpc);
 
 export interface OnChainVerificationResult {
   ok: boolean;
@@ -14,7 +14,7 @@ export interface OnChainVerificationResult {
 /**
  * Verifies that a transaction on Arc successfully transferred
  * at least expectedUnits of USDC (6 decimals, e.g. 10,000 for $0.01 or 1,000 for $0.001,
- * or equivalent native USDC in 18 decimals) to the configured ARCGRADE_PAY_TO address.
+ * or equivalent native USDC in 18 decimals) to the configured FIDEX_PAY_TO (or ARCGRADE_PAY_TO) address.
  */
 export async function verifyArcTestnetTx(
   txHash: string,
@@ -34,7 +34,7 @@ export async function verifyArcTestnetTx(
   // hand out a free receipt for any payment whose hash is not in the live
   // instance's memory -- exactly the bypass the paywall exists to prevent.
   try {
-    if (isTxHashUsed(cleanHash)) {
+    if (await isTxHashUsed(cleanHash)) {
       return { ok: false, reason: "transaction_already_used" };
     }
   } catch (err) {

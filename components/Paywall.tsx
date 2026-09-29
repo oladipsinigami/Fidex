@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { arc, arcTestnet } from "@/lib/wagmi";
+import { IS_TESTNET } from "@/lib/arcchain";
 import { toast } from "@/lib/toast";
 import { LockGlyph } from "./Axis";
 
@@ -46,8 +47,7 @@ export function Paywall({
     setBusy(true);
 
     try {
-      const isTestnet = process.env.NEXT_PUBLIC_ARCGRADE_NETWORK === "mainnet" ? false : true;
-      const targetChain = isTestnet ? arcTestnet : arc;
+      const targetChain = IS_TESTNET ? arcTestnet : arc;
 
       // 1. Ensure user is on the correct Arc network
       if (chain?.id !== targetChain.id && switchChainAsync) {
