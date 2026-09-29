@@ -1,9 +1,0 @@
-name: v11-only-secret-key
-on: [push]
-jobs:
-  j:
-    runs-on: ubuntu-latest
-    env:
-      ARCGRADE_SECRET: ci-test-secret-not-a-real-credential
-    steps:
-      - run: echo ok

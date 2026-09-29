@@ -1,9 +1,0 @@
-name: v10-workflowenv
-on: [push]
-env:
-  FOO: bar
-jobs:
-  j:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ok

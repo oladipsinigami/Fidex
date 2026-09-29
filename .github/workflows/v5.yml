@@ -1,9 +1,0 @@
-name: v5-foundry
-on: [push]
-jobs:
-  j:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly

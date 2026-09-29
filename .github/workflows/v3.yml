@@ -1,7 +1,0 @@
-name: v3-nodee
-on: [push]
-jobs:
-  j:
-    runs-on: ubuntu-latest
-    steps:
-      - run: node -e "const [a,b]=process.versions.node.split('.').map(Number); if(a<24) { console.error('need Node >=24, got '+process.versions.node); process.exit(1) } console.log('node '+process.versions.node)"

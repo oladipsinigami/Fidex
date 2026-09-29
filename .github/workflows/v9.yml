@@ -1,9 +1,0 @@
-name: v9-jobenv-trivial
-on: [push]
-jobs:
-  j:
-    runs-on: ubuntu-latest
-    env:
-      FOO: bar
-    steps:
-      - run: echo ok
