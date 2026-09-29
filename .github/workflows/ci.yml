@@ -59,11 +59,18 @@ jobs:
 
       # contracts/lib is gitignored: the vendored Foundry dependencies are
       # third-party source and do not belong in this repository. But
-      # .gitmodules exists while the paths are not registered as gitlinks, so
+      # .gitmodules exists without the paths registered as gitlinks, so
       # `submodules: recursive` is a no-op and a fresh checkout has no libs.
-      # foundry.lock pins the versions, so forge install resolves them.
+      #
+      # Pinned explicitly rather than relying on a bare `forge install`:
+      # foundry.lock keys its entries with Windows separators ("lib\\forge-std"),
+      # so on Linux forge matches nothing and silently installs nothing. These
+      # tags are the same ones foundry.lock records.
       - name: Install Foundry dependencies
-        run: forge install --root contracts
+        run: |
+          forge install foundry-rs/forge-std@v1.16.2 --root contracts --no-commit
+          forge install OpenZeppelin/openzeppelin-contracts@v5.7.0 --root contracts --no-commit
+          ls contracts/lib
 
       - name: Run Foundry smart contract tests
         run: npm run test:contracts
