@@ -1,43 +1,47 @@
-name: Daily Automated Watchdog
+name: Daily Operational Check
 
 on:
   schedule:
-    # Run every day at 06:00 UTC
-    - cron: '0 6 * * *'
+    # 06:00 UTC daily.
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
+# Read-only. The previous version granted contents:write so it could commit
+# data/arcgrade.db, but that file is gitignored and the store is remote
+# (Turso) in production, so the commit step was a no-op. The watchdog writes to
+# the FIDEX_DB_PATH / TURSO_DATABASE_URL store, never to a committed file.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  telemetry-watchdog:
-    name: Telemetry & Staleness Watchdog
+  operational-check:
+    name: Chain liveness and telemetry drift
     runs-on: ubuntu-latest
+
+    env:
+      FIDEX_DB_PATH: ${{ github.workspace }}/.tmp/fidex.db
+      FIDEX_NETWORK: mainnet
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Node 24: refresh-telemetry.mjs uses node:sqlite via @libsql/client.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run automated health and freshness watchdog
+      - name: Run the operational watchdog
+        # Fails closed: an unreachable Arc RPC records everything as unverified
+        # and exits non-zero, which surfaces the outage instead of hiding it.
         run: npm run verify:watchdog
 
-      - name: Commit & push updated verification database
-        run: |
-          git config user.name "arcgrade-watchdog[bot]"
-          git config user.email "watchdog@arcgrade.xyz"
-          git add data/arcgrade.db
-          if git diff --cached --quiet; then
-            echo "No database changes to commit."
-          else
-            git commit -m "chore(watchdog): automated telemetry verification renewal [skip ci]"
-            git push
-          fi
+      - name: Report TVL and bytecode drift
+        # Drift is a review trigger, not a failure. It prints the list and
+        # exits zero so the run stays green while the finding stays visible.
+        run: npm run verify:drift

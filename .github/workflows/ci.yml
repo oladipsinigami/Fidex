@@ -1,4 +1,4 @@
-name: ArcGrade CI
+name: Fidex CI
 
 on:
   push:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Test & Audit Suite
+    name: Test and Audit Suite
     runs-on: ubuntu-latest
 
     env:
@@ -28,17 +28,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
+      # Node 24, not 20. The suites use node:sqlite (DatabaseSync) and
+      # --experimental-strip-types, neither of which exists on Node 20. The
+      # engines field in package.json declares the same floor.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Assert the required Node version
+        run: node -e "const [a,b]=process.versions.node.split('.').map(Number); if(a<24) { console.error('need Node >=24, got '+process.versions.node); process.exit(1) } console.log('node '+process.versions.node)"
+
+      - name: Lint
+        run: npm run lint
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -51,10 +58,10 @@ jobs:
       - name: Test rating mathematical formulas
         run: npm run test:grade
 
-      - name: Verify payment pipeline & fail-closed security
+      - name: Verify payment pipeline and fail-closed security
         run: npm run verify:payments
 
-      - name: Verify on-chain settlement & calldata decoding
+      - name: Verify on-chain settlement and calldata decoding
         run: npm run verify:onchain
 
       - name: Verify x402 specification compliance
@@ -63,16 +70,16 @@ jobs:
       - name: Verify EIP-712 analyst attestations
         run: npm run test:attest
 
+      - name: Assert the freshness clock cannot be advanced by automation
+        run: npm run test:freshness
+
       - name: Build Next.js application
         run: npm run build
 
-      - name: Start server & audit SSR paywall boundaries (Zero Leak Gate)
-        run: |
-          npm run start -p 3000 &
-          sleep 4
-          npm run test:leak
-
-      - name: Run automated telemetry watchdog
-        run: npm run verify:watchdog
-      - name: Assert the freshness clock cannot be advanced by automation
-        run: npm run test:freshness
+      # check-ssr-leak.mjs boots its own production server on its own port and
+      # waits for readiness, so no server is started here. A previous version
+      # ran `npm run start -p 3000 &` with `sleep 4`, which passes -p to npm
+      # rather than to next and does not wait long enough for a production
+      # build to bind.
+      - name: Zero-leak gate on SSR paywall boundaries
+        run: npm run verify:leak
