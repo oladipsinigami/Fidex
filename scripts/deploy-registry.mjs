@@ -70,6 +70,42 @@ if (broadcast) {
   );
 }
 
+const env = { ...process.env };
+let owner = S.REGISTRY_OWNER || "";
+
+if (!owner) {
+  if (PRIVATE_KEY) {
+    // Derive from the key we are about to broadcast with.
+    const { privateKeyToAccount } = await import("viem/accounts");
+    owner = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`).address;
+  } else {
+    // Foundry keystores are JSON with an `address` field, so the owner can be
+    // derived without ever prompting for the password.
+    const ks = path.join(process.env.USERPROFILE || process.env.HOME || "", ".foundry", "keystores", KEYSTORE);
+    if (existsSync(ks)) {
+      try {
+        owner = JSON.parse(readFileSync(ks, "utf8")).address || "";
+      } catch {
+        owner = "";
+      }
+    }
+  }
+}
+
+if (!owner) {
+  console.error(
+    "\n  Could not determine REGISTRY_OWNER.\n" +
+      "  Set REGISTRY_OWNER in .env.deploy.local. The registry is non-upgradeable,\n" +
+      "  so deploying one nobody can approve analysts on would need a fresh deploy.\n",
+  );
+  process.exit(1);
+}
+
+env.REGISTRY_OWNER = owner;
+if (S.INITIAL_ANALYSTS) env.INITIAL_ANALYSTS = S.INITIAL_ANALYSTS;
+
+console.log(`  owner      : ${owner}`);
+
 const args = [
   "script",
   "contracts/script/DeployFidex.s.sol:DeployFidex",
@@ -95,7 +131,7 @@ if (!broadcast) {
 
 const r = spawnSync("forge", args, {
   cwd: ROOT,
-  env: { ...process.env },
+  env,
   encoding: "utf8",
   shell: process.platform === "win32",
 });

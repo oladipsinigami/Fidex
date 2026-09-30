@@ -112,8 +112,51 @@ if (!isRunning) {
   }
 }
 
+let failures = 0;
+const check = (name, fn) => {
+  try {
+    fn();
+    console.log(`  PASS  ${name}`);
+  } catch (e) {
+    failures++;
+    console.error(`  FAIL  ${name}\n        ${e.message}`);
+  }
+};
+
+/**
+ * Is the configured registry a real deployed contract?
+ *
+ * The API now reads `isApprovedAnalyst` on-chain, because a valid signature
+ * alone does not make an analyst certified -- the registry decides that. That
+ * check needs real bytecode at the configured address. Until FidexRegistry is
+ * actually deployed there is nothing to attest against, so the honest
+ * expectation is a refusal rather than a 200.
+ */
+async function registryHasCode(address) {
+  try {
+    const res = await fetch("https://rpc.testnet.arc.io", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_getCode",
+        params: [address, "latest"],
+      }),
+    });
+    const json = await res.json();
+    return typeof json?.result === "string" && json.result !== "0x";
+  } catch {
+    return false;
+  }
+}
+
+const deployed = await registryHasCode(REGISTRY_ADDRESS);
+
 try {
   console.log("=== Running Fidex EIP-712 Cryptographic Attestation Tests ===\n");
+  console.log(`Registry address: ${REGISTRY_ADDRESS}`);
+  console.log(`Deployed contract: ${deployed ? "yes" : "NO (no bytecode at that address)"}\n`);
 
   // Ephemeral test analyst account
   const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -136,7 +179,7 @@ try {
     message,
   });
 
-  console.log(`Generated EIP-712 Signature: ${signature.slice(0, 20)}...`);
+  console.log(`Generated EIP-712 Signature: ${signature.slice(0, 20)}...\n`);
 
   const res = await fetch(`${BASE_URL}/api/v1/attest`, {
     method: "POST",
@@ -152,20 +195,44 @@ try {
   });
 
   const json = await res.json();
-  console.log("Response:", json);
+  console.log("Response:", json, "\n");
 
-  assert.strictEqual(res.status, 200, `Expected 200, got ${res.status}`);
-  assert.strictEqual(json.ok, true);
-  assert(json.attestationId.startsWith("attest_"));
-  assert.strictEqual(json.analyst, analyst.address);
+  if (deployed) {
+    check("rejects an analyst who is not on the allowlist", () => {
+      // This ephemeral key is definitely not allowlisted, so the only correct
+      // outcome is a refusal. A 200 here would mean the API recorded an
+      // attestation the registry would refuse.
+      assert.strictEqual(
+        res.status,
+        403,
+        `expected 403 analyst_not_approved, got ${res.status}: ${JSON.stringify(json)}`,
+      );
+      assert.strictEqual(json.error, "analyst_not_approved");
+      assert(!json.attestationId, "no attestation may be recorded for an unlisted analyst");
+    });
 
-  // Verify query endpoint
-  const queryRes = await fetch(`${BASE_URL}/api/v1/attest?slug=aave-v4-arc`);
-  const queryJson = await queryRes.json();
-  assert(queryJson.attestations.length > 0);
-  assert.strictEqual(queryJson.attestations[0].analystAddress, analyst.address.toLowerCase());
+    console.log(
+      `\nNOTE: ${analyst.address} is not allowlisted. To exercise the 200 path,\n` +
+        `  allowlist it from the owner wallet:\n` +
+        `    cast send ${REGISTRY_ADDRESS} "setAnalystApproval(address,bool)" ${analyst.address} true --rpc-url https://rpc.testnet.arc.io --account defaultkey`,
+    );
+  } else {
+    check("refuses when there is no contract to read the allowlist from", () => {
+      assert.strictEqual(
+        res.status,
+        503,
+        `expected 503 allowlist_unavailable, got ${res.status}: ${JSON.stringify(json)}`,
+      );
+      assert.strictEqual(json.error, "allowlist_unavailable");
+      assert(!json.attestationId, "no attestation may be recorded without a registry contract");
+    });
 
-  console.log("\nPASS: EIP-712 Analyst Cryptographic Attestation successfully signed, verified, and persisted to SQLite!");
+    console.log(
+      "\nNOTE: FidexRegistry is not deployed, so the allowlist cannot be read.\n" +
+        "  Deploy it, then re-run:\n" +
+        "    node scripts/deploy-registry.mjs testnet --broadcast",
+    );
+  }
 
   /**
    * Fail-closed guard: the signing domain must never be allowed to verify
@@ -226,14 +293,15 @@ try {
       }),
     });
     const json2 = await res2.json().catch(() => ({}));
-    assert.strictEqual(
-      res2.status,
-      503,
-      `expected 503 registry_not_configured, got ${res2.status}`,
-    );
-    assert.strictEqual(json2.error, "registry_not_configured");
-    assert(!json2.attestationId, "no attestation may be recorded without a registry");
-    console.log(`PASS: refused with 503 registry_not_configured (status=${res2.status})`);
+    check("refuses with 503 when the registry address is the zero address", () => {
+      assert.strictEqual(
+        res2.status,
+        503,
+        `expected 503 registry_not_configured, got ${res2.status}: ${JSON.stringify(json2)}`,
+      );
+      assert.strictEqual(json2.error, "registry_not_configured");
+      assert(!json2.attestationId, "no attestation may be recorded without a registry");
+    });
   } finally {
     unconfigured.kill();
   }
@@ -242,3 +310,13 @@ try {
     appProcess.kill();
   }
 }
+
+if (failures > 0) {
+  console.error(`\n${failures} check(s) failed\n`);
+  process.exit(1);
+}
+
+console.log("\nAll attestation checks passed.\n");
+// next start children keep libuv handles alive on Windows and trip an
+// assertion at teardown, so exit explicitly rather than waiting on the loop.
+process.exit(0);

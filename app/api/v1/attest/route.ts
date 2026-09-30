@@ -1,11 +1,53 @@
 import { NextResponse } from "next/server";
-import { verifyTypedData } from "viem";
+import { createPublicClient, http, verifyTypedData } from "viem";
+import { arc, arcTestnet } from "viem/chains";
 import { recordAttestation, getAttestations } from "@/lib/db";
 import { getProtocol } from "@/data/protocols";
 
 export const dynamic = "force-dynamic";
 
-import { ATTESTATION_DOMAIN, ATTESTATION_TYPES, REGISTRY_UNCONFIGURED } from "@/lib/attestation";
+import {
+  ATTESTATION_DOMAIN,
+  ATTESTATION_TYPES,
+  REGISTRY_CONTRACT_ADDRESS,
+  REGISTRY_UNCONFIGURED,
+} from "@/lib/attestation";
+import { ARC, IS_TESTNET } from "@/lib/arcchain";
+
+/**
+ * Reads `isApprovedAnalyst(analyst)` from the deployed registry.
+ *
+ * The registry refuses attestations from analysts the owner has not
+ * allowlisted. The API verifies the EIP-712 signature on its own and has no way
+ * to know that, so without this check it would happily persist a record for an
+ * unlisted analyst that the chain would refuse to accept -- reporting a
+ * verified attestation that could never be written on-chain.
+ */
+async function isApprovedAnalyst(address: string): Promise<boolean> {
+  const client = createPublicClient({
+    // viem ships both Arc chains and their ids match the values verified in
+    // lib/arcchain.ts (5042 / 5042002), but the RPC is taken from ARC so there
+    // is a single source of truth for the endpoint. Passing an explicit
+    // transport also means viem's own default URL is never used by accident.
+    chain: IS_TESTNET ? arcTestnet : arc,
+    transport: http(IS_TESTNET ? ARC.testnetRpc : ARC.rpc),
+  });
+
+  return client.readContract({
+    address: REGISTRY_CONTRACT_ADDRESS as `0x${string}`,
+    abi: [
+      {
+        type: "function",
+        name: "isApprovedAnalyst",
+        stateMutability: "view",
+        inputs: [{ name: "analyst", type: "address" }],
+        outputs: [{ type: "bool" }],
+      },
+    ],
+    functionName: "isApprovedAnalyst",
+    args: [address as `0x${string}`],
+  });
+}
 
 /**
  * GET /api/v1/attest?slug=<slug>
@@ -105,6 +147,36 @@ export async function POST(req: Request) {
 
     if (!isValid) {
       return NextResponse.json({ error: "signature_verification_failed" }, { status: 400 });
+    }
+
+    /**
+     * A valid signature proves the analyst holds a key. It does not prove the
+     * analyst is certified -- the registry decides that, and it rejects anyone
+     * the owner has not allowlisted. Check it on-chain before recording, so the
+     * API never stores an attestation the registry would refuse.
+     */
+    let approved: boolean;
+    try {
+      approved = await isApprovedAnalyst(analystAddress);
+    } catch (e) {
+      // Unreachable RPC must not read as "approved".
+      console.error("attest: allowlist lookup failed", e);
+      return NextResponse.json(
+        { error: "allowlist_unavailable", message: "Could not read the analyst allowlist." },
+        { status: 503 },
+      );
+    }
+
+    if (!approved) {
+      return NextResponse.json(
+        {
+          error: "analyst_not_approved",
+          message:
+            "This address is not an approved analyst on the registry. A valid signature is " +
+            "not enough; the registry owner must allowlist it.",
+        },
+        { status: 403 },
+      );
     }
 
     // Persist verified cryptographic attestation to SQLite

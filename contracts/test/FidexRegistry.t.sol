@@ -33,6 +33,10 @@ contract FidexRegistryTest is Test {
 
     bytes32 internal TYPEHASH;
 
+    /// Approved at construction so existing behaviour tests keep exercising the
+    /// signature and validation paths rather than the allowlist.
+    address[] internal _seed;
+
     event RatingAttested(
         bytes32 indexed id,
         string indexed slug,
@@ -42,6 +46,7 @@ contract FidexRegistryTest is Test {
         uint256 timestamp
     );
     event AgentRegistered(address indexed agent, string metadataUri, uint256 timestamp);
+    event AnalystApprovalUpdated(address indexed analyst, bool approved);
 
     function setUp() public {
         vm.chainId(ARC_MAINNET_CHAIN_ID);
@@ -51,7 +56,12 @@ contract FidexRegistryTest is Test {
         other = vm.addr(otherPk);
         agent = vm.addr(agentPk);
 
-        registry = new FidexRegistry();
+        // Allowlist the primary analyst so the signature/validation tests keep
+        // exercising those paths rather than tripping the allowlist first.
+        _seed = new address[](1);
+        _seed[0] = analyst;
+
+        registry = new FidexRegistry(address(this), _seed);
 
         TYPEHASH = keccak256(
             "RatingAttestation(string slug,string letter,uint256 score,address analyst,uint256 timestamp)"
@@ -106,7 +116,7 @@ contract FidexRegistryTest is Test {
         bytes32 mainnetDigest = _digest("cirbtc", "D", 53, analyst, block.timestamp);
         bytes memory sig = _sign(analystPk, mainnetDigest);
 
-        FidexRegistry testnetRegistry = new FidexRegistry();
+        FidexRegistry testnetRegistry = new FidexRegistry(address(this), _seed);
         vm.chainId(ARC_TESTNET_CHAIN_ID);
 
         vm.expectRevert(FidexRegistry.InvalidSignature.selector);
@@ -117,7 +127,7 @@ contract FidexRegistryTest is Test {
     ///      signatures.
     function test_Eip712Domain_RejectsCrossChainReplay() public {
         vm.chainId(ARC_TESTNET_CHAIN_ID);
-        FidexRegistry testnetRegistry = new FidexRegistry();
+        FidexRegistry testnetRegistry = new FidexRegistry(address(this), _seed);
         bytes32 testnetDigest = _digest("cirbtc", "D", 53, analyst, block.timestamp);
         bytes memory sig = _sign(analystPk, testnetDigest);
 
@@ -304,18 +314,117 @@ contract FidexRegistryTest is Test {
         registry.getAttestationByIndex("cirbtc", 1);
     }
 
-    /// @dev Pinned on purpose. `attest()` requires no signature, no allowlist and
-    ///      no stake, so anyone can push a letter for any slug and
-    ///      getLatestAttestation will return it. This is a design decision for
-    ///      the mainnet launch, not an oversight -- but it directly contradicts
-    ///      "protocols cannot purchase ratings" and must be resolved before
-    ///      mainnet, because an on-chain record cannot be deleted afterwards.
-    function test_attest_IsPermissionless_AnyoneCanPublishAnyGrade() public {
+    /// @dev The whole point of the allowlist. Previously `attest()` had no
+    ///      signature, no allowlist and no stake, so a stranger could publish an
+    ///      "A" for any slug and `getLatestAttestation` would return it. On
+    ///      mainnet that record is permanent.
+    function test_attest_RevertWhen_CallerNotApproved() public {
         vm.prank(other); // a stranger, not a certified analyst
+        vm.expectRevert(abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, other));
+        registry.attest("cirbtc", "A", 100);
+    }
+
+    /// @dev A signature is not enough on its own -- the signer must also be
+    ///      allowlisted, otherwise "certified analyst" means nothing.
+    function test_attestWithSig_RevertWhen_SignerNotApproved() public {
+        // `other` signs correctly, but is not on the allowlist.
+        bytes32 d = _digest("cirbtc", "A", 100, other, block.timestamp);
+        bytes memory sig = _sign(otherPk, d);
+
+        vm.expectRevert(abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, other));
+        registry.attestWithSig("cirbtc", "A", 100, other, block.timestamp, sig);
+    }
+
+    function test_Allowlist_StrangerCannotThenCanAfterApproval() public {
+        vm.prank(other);
+        vm.expectRevert(abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, other));
         registry.attest("cirbtc", "A", 100);
 
-        FidexRegistry.Attestation memory a = registry.getLatestAttestation("cirbtc");
-        assertEq(a.letter, "A", "an unauthenticated caller can set the latest grade");
-        assertEq(a.analyst, other);
+        registry.setAnalystApproval(other, true);
+        assertTrue(registry.isAnalyst(other));
+
+        vm.prank(other);
+        registry.attest("cirbtc", "A", 100);
+        assertEq(registry.getAttestationCount("cirbtc"), 1);
+    }
+
+    function test_Allowlist_RevocationTakesEffectImmediately() public {
+        registry.setAnalystApproval(analyst, false);
+        vm.prank(analyst);
+        vm.expectRevert(
+            abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, analyst)
+        );
+        registry.attest("cirbtc", "D", 53);
+    }
+
+    function test_Allowlist_OnlyOwnerCanChange() public {
+        vm.prank(other);
+        vm.expectRevert();
+        registry.setAnalystApproval(other, true);
+
+        vm.prank(analyst);
+        vm.expectRevert();
+        registry.setAnalystApproval(other, true);
+    }
+
+    function test_Allowlist_Batch() public {
+        address[] memory addrs = new address[](2);
+        addrs[0] = other;
+        addrs[1] = agent;
+
+        vm.expectEmit(true, false, false, true, address(registry));
+        emit AnalystApprovalUpdated(other, true);
+        registry.setAnalystApprovals(addrs, true);
+
+        assertTrue(registry.isAnalyst(other));
+        assertTrue(registry.isAnalyst(agent));
+
+        registry.setAnalystApprovals(addrs, false);
+        assertFalse(registry.isAnalyst(other));
+        assertFalse(registry.isAnalyst(agent));
+    }
+
+    function test_Allowlist_RevertWhen_EmptyBatch() public {
+        address[] memory none = new address[](0);
+        vm.expectRevert(FidexRegistry.EmptyAnalystBatch.selector);
+        registry.setAnalystApprovals(none, true);
+    }
+
+    function test_Allowlist_RevertWhen_ZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, address(0)));
+        registry.setAnalystApproval(address(0), true);
+    }
+
+    /// @dev A fresh registry must accept nobody. Forgetting to configure the
+    ///      allowlist should lock the registry, not open it.
+    function test_Allowlist_EmptyByDefault_FailsClosed() public {
+        FidexRegistry blank = new FidexRegistry(address(this), new address[](0));
+        vm.prank(analyst);
+        vm.expectRevert(
+            abi.encodeWithSelector(FidexRegistry.NotApprovedAnalyst.selector, analyst)
+        );
+        blank.attest("cirbtc", "A", 100);
+    }
+
+    /// @dev Owner is two-step, so a mistyped owner update cannot brick the
+    ///      allowlist.
+    function test_Ownership_TwoStep() public {
+        // No vm.prank: the test contract is already the caller.
+        registry.transferOwnership(other);
+        // Still this contract until the new owner accepts.
+        assertEq(registry.owner(), address(this));
+        vm.prank(other);
+        registry.acceptOwnership();
+        assertEq(registry.owner(), other);
+
+        // Only the new owner can now manage the allowlist -- the previous owner
+        // has lost that power, which is the point of the handover.
+        vm.prank(address(this));
+        vm.expectRevert();
+        registry.setAnalystApproval(other, true);
+
+        vm.prank(other);
+        registry.setAnalystApproval(other, true);
+        assertTrue(registry.isAnalyst(other));
     }
 }

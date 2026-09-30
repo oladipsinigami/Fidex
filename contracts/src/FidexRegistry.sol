@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @title  FidexRegistry
 /// @notice Immutable EIP-712 institutional-grade attestation registry on Circle Arc.
@@ -21,7 +23,25 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 ///         compilation artifact that diverges from the official Fidex domain.  Any
 ///         existing deployment of ArcGradeRegistry continues to function unchanged on
 ///         its own address; this contract is the canonical Fidex Mainnet successor.
-contract FidexRegistry is EIP712 {
+/// @dev    Successor to ArcGradeRegistry. Note the "same storage layout" claim
+///           in the original header was incorrect -- that contract has five
+///           mappings beginning `_slugAttestations`, this one has a different
+///           set and order. There is no upgrade path from one to the other,
+///           which is intentional: the pre-rebrand contract is not deployed
+///           anywhere.
+///
+///         ANALYST ALLOWLIST
+///         ------------------
+///         Both write paths require the acting analyst to be allowlisted by the
+///         owner. Without that, `attest()` had no signature, no allowlist and no
+///         stake: anyone could publish an "A" for any slug and
+///         `getLatestAttestation` would return it. On mainnet such a record is
+///         permanent, which contradicts the product claim that protocols cannot
+///         purchase ratings.
+///
+///         Ownership is two-step, so a mistyped owner update cannot brick the
+///         allowlist.
+contract FidexRegistry is EIP712, Ownable2Step {
     using ECDSA for bytes32;
 
     // =========================================================================
@@ -81,6 +101,13 @@ contract FidexRegistry is EIP712 {
     /// @notice Latest metadata URI registered by an agent (ERC-8004 / ERC-8183).
     mapping(address => string) public agentMetadataUri;
 
+    /// @notice Certified analysts permitted to record attestations.
+    /// @dev    Owner-controlled. The empty set is the default: a fresh deploy
+    ///         accepts no attestations until the owner allowlists somebody, so a
+    ///         forgotten configuration fails closed rather than leaving the
+    ///         registry wide open.
+    mapping(address => bool) public isApprovedAnalyst;
+
     // =========================================================================
     // Events
     // =========================================================================
@@ -100,6 +127,12 @@ contract FidexRegistry is EIP712 {
         uint256 timestamp
     );
 
+    /// @notice Emitted when the owner allowlists or de-lists an analyst.
+    event AnalystApprovalUpdated(address indexed analyst, bool approved);
+
+    /// @notice Emitted when the owner allowlists several analysts in one call.
+    event AnalystsBatchUpdated(address[] analysts, bool approved);
+
     // =========================================================================
     // Errors
     // =========================================================================
@@ -113,18 +146,69 @@ contract FidexRegistry is EIP712 {
     error SlugNotFound(string slug);
     error IndexOutOfBounds(uint256 index, uint256 length);
     error InvalidSignature();
+    error NotApprovedAnalyst(address analyst);
+    error EmptyAnalystBatch();
 
     // =========================================================================
     // Constructor
     // =========================================================================
 
-    constructor() EIP712("Fidex Studio", "1") {}
+    /// @param initialOwner     Address that owns the analyst allowlist. Passed
+    ///        explicitly rather than as `msg.sender` so the deployer can see
+    ///        exactly who ends up able to approve analysts.
+    /// @param initialAnalysts Addresses to allowlist at deployment. Empty by
+    ///        default, which is the safe direction: a registry nobody has been
+    ///        added to accepts no attestations.
+    constructor(address initialOwner, address[] memory initialAnalysts)
+        EIP712("Fidex Studio", "1")
+        Ownable(initialOwner)
+    {
+        uint256 n = initialAnalysts.length;
+        for (uint256 i; i < n; ++i) {
+            address a = initialAnalysts[i];
+            if (a == address(0)) continue;
+            isApprovedAnalyst[a] = true;
+            emit AnalystApprovalUpdated(a, true);
+        }
+        if (n > 0) emit AnalystsBatchUpdated(initialAnalysts, true);
+    }
+
+    // =========================================================================
+    // Owner — analyst allowlist
+    // =========================================================================
+
+    /// @notice Allowlist or de-list a single analyst.
+    function setAnalystApproval(address analyst, bool approved) external onlyOwner {
+        if (analyst == address(0)) revert NotApprovedAnalyst(address(0));
+        isApprovedAnalyst[analyst] = approved;
+        emit AnalystApprovalUpdated(analyst, approved);
+    }
+
+    /// @notice Allowlist or de-list several analysts at once.
+    function setAnalystApprovals(address[] calldata analysts, bool approved) external onlyOwner {
+        uint256 n = analysts.length;
+        if (n == 0) revert EmptyAnalystBatch();
+        for (uint256 i; i < n; ++i) {
+            address a = analysts[i];
+            if (a == address(0)) continue;
+            isApprovedAnalyst[a] = approved;
+            emit AnalystApprovalUpdated(a, approved);
+        }
+        emit AnalystsBatchUpdated(analysts, approved);
+    }
+
+    /// @notice True when `analyst` may record attestations.
+    function isAnalyst(address analyst) external view returns (bool) {
+        return isApprovedAnalyst[analyst];
+    }
 
     // =========================================================================
     // Write — direct attestation
     // =========================================================================
 
     /// @notice Record a rating attestation directly.  `msg.sender` is the analyst.
+    /// @dev    Requires the caller to be an owner-approved analyst. Otherwise the
+    ///         registry is an open board anyone can post an "A" to.
     /// @param  slug   Unique identifier for the rated entity.
     /// @param  letter Human-readable grade letter (e.g. "A", "B+").
     /// @param  score  Numeric score in the range [0, 100].
@@ -134,6 +218,7 @@ contract FidexRegistry is EIP712 {
         string calldata letter,
         uint256 score
     ) external returns (bytes32 id) {
+        _requireApproved(msg.sender);
         id = _storeAttestation(
             slug,
             letter,
@@ -194,6 +279,12 @@ contract FidexRegistry is EIP712 {
         ) {
             revert InvalidSignature();
         }
+
+        // Authorisation AFTER authentication: a caller who cannot produce a valid
+        // signature learns nothing about who is on the allowlist, and the two
+        // failure modes stay distinguishable -- a bad signature is
+        // InvalidSignature, an unlisted signer is NotApprovedAnalyst.
+        _requireApproved(analyst);
 
         // Key replay protection on the typed-data digest, not raw signature bytes.
         // This prevents re-use via alternate ECDSA encodings that recover to the
@@ -278,6 +369,13 @@ contract FidexRegistry is EIP712 {
     // =========================================================================
     // Internal helpers
     // =========================================================================
+
+    /// @dev Fails closed: an address not on the allowlist may not attest, and
+    ///      the reason is explicit so a caller can tell "not certified" apart
+    ///      from "bad signature".
+    function _requireApproved(address analyst) internal view {
+        if (!isApprovedAnalyst[analyst]) revert NotApprovedAnalyst(analyst);
+    }
 
     function _storeAttestation(
         string  calldata slug,
