@@ -14,19 +14,19 @@ export function AxisBar({
   weight: number;
 }) {
   const tone =
-    score >= 85 ? "var(--color-reserve)" : score >= 70 ? "var(--color-gold)" : score >= 55 ? "var(--color-caution)" : "var(--color-stop)";
+    score >= 85 ? "#3b7a57" : score >= 70 ? "#d9822b" : score >= 55 ? "#bf5b30" : "#a63a3a";
   return (
-    <div className="relative h-[6px] w-full overflow-hidden rounded-[1px] bg-paper/[0.06]">
+    <div className="relative h-[8px] w-full overflow-hidden rounded-[1px] bg-[var(--line)]">
       <div
-        className="axis-bar-fill h-full"
+        className="axis-bar-fill h-full transition-all duration-500 ease-out"
         style={{
           width: `${score}%`,
-          background: locked ? "rgba(232,214,176,0.22)" : tone,
+          background: locked ? "var(--line-strong)" : tone,
           animationDelay: `${index * 40}ms`,
         }}
       />
       {weight === 0 && (
-        <span className="absolute -top-5 right-0 label-xs text-faint">display only</span>
+        <span className="absolute -top-5 right-0 font-mono text-[10px] uppercase text-[var(--mute)]">display only</span>
       )}
     </div>
   );
@@ -46,22 +46,22 @@ export function AxisRow({
   const isLocked = locked ?? !paid;
   const tone = toneFor(bandFor(axis.score));
   return (
-    <div className="border-t border-paper/[0.06] py-6 first:border-t-0">
+    <div className="border-t border-[var(--line)] py-6 first:border-t-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <div className="flex items-baseline gap-3">
-          <h3 className="font-display text-lg text-paper">{axis.label}</h3>
+          <h3 className="font-campaign text-xl font-bold uppercase tracking-tight text-[var(--ink)]">{axis.label}</h3>
           {axis.weight > 0 && (
-            <span className="num font-mono text-[10px] text-faint">
+            <span className="font-mono text-[10px] uppercase text-[var(--mute)]">
               w {(axis.weight * 100).toFixed(0)}%
             </span>
           )}
         </div>
         {paid ? (
-          <span className="num font-mono text-sm" style={{ color: tone.ink }}>
+          <span className="font-mono text-sm font-bold" style={{ color: tone.ink }}>
             {axis.score}
           </span>
         ) : (
-          <span className="label-xs inline-flex items-center gap-1.5 text-faint">
+          <span className="font-mono text-xs uppercase inline-flex items-center gap-1.5 text-[var(--mute)]">
             <LockGlyph />
             Locked
           </span>
@@ -72,7 +72,7 @@ export function AxisRow({
         <AxisBar score={axis.score} index={index} locked={isLocked} weight={axis.weight} />
       </div>
 
-      <p className="mt-3 max-w-[68ch] text-[13px] leading-relaxed text-quiet">
+      <p className="mt-3 max-w-[68ch] text-[13px] leading-relaxed text-[var(--mute)]">
         {paid ? axis.evidence : axis.summary}
       </p>
 
@@ -84,7 +84,7 @@ export function AxisRow({
                 href={cit.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="link-gold font-mono text-[10.5px] uppercase tracking-[0.1em]"
+                className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--gold)] hover:underline"
               >
                 {cit.kind} &middot; {cit.label}
               </a>
@@ -110,17 +110,17 @@ export function LockedAxes({ protocol }: { protocol: Protocol }) {
   return (
     <div aria-hidden className="pointer-events-none select-none">
       {protocol.axes.map((a, i) => (
-        <div key={a.id} className="border-t border-paper/[0.05] py-5 opacity-30 first:border-t-0">
+        <div key={a.id} className="border-t border-[var(--line)] py-5 opacity-40 first:border-t-0">
           <div className="flex items-baseline justify-between">
-            <h3 className="font-display text-base text-paper">{a.label}</h3>
-            <span className="label-xs inline-flex items-center gap-1.5">
+            <h3 className="font-campaign text-lg font-bold uppercase tracking-tight text-[var(--ink)]">{a.label}</h3>
+            <span className="font-mono text-xs uppercase inline-flex items-center gap-1.5 text-[var(--mute)]">
               <LockGlyph />
             </span>
           </div>
-          <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[1px] bg-paper/[0.05]">
+          <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[1px] bg-[var(--line)]">
             <div
-              className="h-full bg-paper/25"
-              style={{ width: `${a.score}%`, opacity: 0.3, transitionDelay: `${i * 40}ms` }}
+              className="h-full bg-[var(--ink)] opacity-30"
+              style={{ width: `${a.score}%`, transitionDelay: `${i * 40}ms` }}
             />
           </div>
         </div>

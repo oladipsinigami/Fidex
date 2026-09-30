@@ -32,5 +32,4 @@ export const arcTestnet = defineChain({
 export const USDC_ARC = ARC.usdc;
 
 export { ARC } from "./arcchain";
-export { AG, LIVE as PAYMENT_FACILITATOR, PAY_TO, PRICE_DOSSIER, PRICE_AXIS } from "./x402";
 

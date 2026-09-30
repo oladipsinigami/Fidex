@@ -200,6 +200,8 @@ async function pushEnv() {
     pairs.push(["FIDEX_PUBLIC_URL", domain]);
     // Legacy name still read as a fallback by lib/site.ts and lib/x402.ts.
     pairs.push(["ARCGRADE_PUBLIC_URL", domain]);
+    pairs.push(["NEXT_PUBLIC_FIDEX_URL", domain]);
+    pairs.push(["NEXT_PUBLIC_ARCGRADE_URL", domain]);
   }
   const missing = pairs.filter(([, v]) => !v);
   if (missing.length) throw new Error(`refusing to deploy with empty: ${missing.map(([k]) => k).join(", ")}`);

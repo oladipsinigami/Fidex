@@ -16,7 +16,6 @@
  * internals, so it holds regardless of how either file is refactored.
  */
 import assert from "node:assert";
-import { DatabaseSync } from "node:sqlite";
 import { readFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";

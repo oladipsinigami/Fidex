@@ -11,7 +11,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const effectiveSecret = process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET;
 // `next build` runs with NODE_ENV=production but is not a deployment, so the
 // guard stands down during the build and fails on the first real request.
-if (isProduction && !effectiveSecret && !IS_BUILD_PHASE) {
+if (typeof window === "undefined" && isProduction && !effectiveSecret && !IS_BUILD_PHASE) {
   throw new Error("[Fidex Security FATAL] FIDEX_SECRET (or ARCGRADE_SECRET) is required in production environments to mint cryptographic unlock receipts.");
 }
 const SECRET = effectiveSecret ?? "fidex-dev-secret-not-for-production";

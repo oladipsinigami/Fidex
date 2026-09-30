@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import type { LiveProtocol, Protocol } from "@/lib/types";
 import { getProtocol, PROTOCOLS } from "@/data/protocols";
-import { GradeLetter, ScoreRing, StaleChip } from "@/components/RatingPlate";
+import { StaleChip } from "@/components/RatingPlate";
 import { AxisRow, LockedAxes } from "@/components/Axis";
 import { Paywall } from "@/components/Paywall";
 import { DecisionCard } from "@/components/DecisionCard";
@@ -15,6 +16,7 @@ import { COOKIE, LEGACY_COOKIE, unlocks, verifyReceipt } from "@/lib/unlock";
 import { fetchArcProtocols, fmtShort } from "@/lib/discover";
 import { screen } from "@/lib/screen";
 import { WalletGate } from "@/components/WalletGate";
+import { CropMark } from "@/components/CropMark";
 
 export function generateStaticParams() {
   return PROTOCOLS.map((p) => ({ slug: p.slug }));
@@ -76,13 +78,13 @@ export default async function ProtocolPage({
     .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
   return (
-    <article className="relative">
+    <article className="lookbook min-h-screen relative">
       <Header p={p} />
       <WalletGate protocolName={p.name} category={p.category}>
         <Hero p={p} paid={paid} stale={stale} tone={tone} />
         <Axes p={p} paid={paid} />
         {paid && <KillShots p={p} />}
-        <section className="mx-auto max-w-[1120px] px-5 py-10">
+        <section className="mx-auto max-w-[1320px] px-6 py-10">
           <div className="grid gap-8 lg:grid-cols-2">
             {paid && <DecisionCard protocol={p} />}
             <AgentSnippet
@@ -109,31 +111,31 @@ export default async function ProtocolPage({
 
 function Header({ p }: { p: Protocol }) {
   return (
-    <div className="border-b border-paper/[0.07]">
-      <div className="mx-auto max-w-[1120px] px-5 pt-8">
-        <nav className="label-xs flex flex-wrap items-center gap-2 text-faint">
-          <Link href="/markets" className="hover:text-gold">Markets</Link>
+    <div className="border-b border-[var(--line)] bg-[var(--panel-subtle)]">
+      <div className="mx-auto max-w-[1320px] px-6 py-6">
+        <nav className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--mute)]">
+          <Link href="/markets" className="hover:text-[var(--ink)]">MARKETS</Link>
           <span>/</span>
-          <span className="text-quiet">{p.category}</span>
+          <span className="uppercase">{p.category}</span>
           <span>/</span>
-          <span className="text-quiet">{p.name}</span>
+          <span className="uppercase text-[var(--ink)] font-bold">{p.name}</span>
         </nav>
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <StaleChip updatedAt={p.updatedAt} />
-          <span className="label-xs text-faint">
-            Arc route:{" "}
-            {p.arcRoute === "native" ? "Native on Arc" : `Bridged (${p.arcRoute.replace("bridged-", "")})`}
+          <span className="font-mono text-xs uppercase text-[var(--mute)]">
+            ARC ROUTE:{" "}
+            {p.arcRoute === "native" ? "NATIVE ON ARC" : `BRIDGED (${p.arcRoute.replace("bridged-", "").toUpperCase()})`}
           </span>
         </div>
 
         {p.slug === "emberyield-farm" && (
-          <div className="mt-6 rounded-[2px] border border-stop/40 bg-stop/10 p-4 text-[13px] text-paper">
-            <div className="flex items-center gap-2 font-mono text-stop font-bold text-xs uppercase tracking-wider">
+          <div className="mt-6 rounded-[2px] border border-red-500/40 bg-red-500/10 p-4 font-mono text-xs text-[var(--ink)]">
+            <div className="flex items-center gap-2 text-red-500 font-bold uppercase tracking-wider">
               <span>⚠️ Simulated Benchmark Threat Model</span>
-              <span className="text-paper/40">&middot;</span>
+              <span className="opacity-40">&middot;</span>
               <span>Not a Live Vault</span>
             </div>
-            <p className="mt-1 text-xs text-quiet leading-relaxed">
+            <p className="mt-1 text-xs opacity-80 leading-relaxed font-sans">
               EmberYield Farm is a synthetic threat-model reference asset maintained to verify that Fidex compounding algorithms immediately detect and mathematically penalize unsustainable emissions-funded yields down to Grade F.
             </p>
           </div>
@@ -143,7 +145,7 @@ function Header({ p }: { p: Protocol }) {
   );
 }
 
-/** Left 7 / right 5. Monumental letter, verdict, paywall. */
+/** Left 7 / right 5. Minted Ingot Plate, verdict, brutalist paywall. */
 function Hero({
   p,
   paid,
@@ -156,69 +158,85 @@ function Hero({
   tone: ReturnType<typeof toneFor>;
 }) {
   return (
-    <section className="mx-auto max-w-[1120px] px-5 py-14">
-      <div className="grid gap-12 lg:grid-cols-12">
+    <section className="mx-auto max-w-[1320px] px-6 py-12 sm:py-16">
+      <div className="grid gap-12 lg:grid-cols-12 items-start">
         <div className="lg:col-span-7">
-          <div
-            className="relative overflow-hidden border border-paper/[0.07] p-8 sm:p-10"
-            style={{
-              backgroundImage: `radial-gradient(ellipse 80% 70% at 20% 10%, ${tone.glow}, transparent 70%), linear-gradient(168deg, var(--color-elev), var(--color-panel) 60%, var(--color-sunk))`,
-            }}
-          >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -right-8 -top-16 select-none font-display text-[20rem] font-semibold leading-none text-paper/[0.05]"
-            >
-              {p.letter}
-            </span>
+          <div className="relative border border-[var(--line)] bg-[var(--panel-subtle)] p-6 sm:p-10">
+            <CropMark corner="tl" size={20} />
+            <CropMark corner="br" size={20} />
 
-            <div className="relative flex flex-wrap items-end gap-8">
-              <div>
-                <GradeLetter letter={p.letter} slam className="text-[clamp(9rem,22vw,15rem)]" />
-                <p className="label-xs mt-4">
-                  {tone.label} &middot; {p.category}
+            <div className="flex flex-col sm:flex-row items-center gap-8">
+              <div className="dossier-ingot-wrap shrink-0">
+                <Image
+                  src="/plates/ingot-a.jpg"
+                  alt={`Fidex Minted Plate ${p.letter}`}
+                  className="dossier-ingot-img"
+                  width={380}
+                  height={380}
+                  priority
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <span className={`grade-badge-solid grade-badge-solid--${p.letter}`}>
+                    {p.letter}
+                  </span>
+                  <span className="font-mono text-xs tracking-wider uppercase text-[var(--mute)]">
+                    {tone.label} &middot; {p.category}
+                  </span>
+                </div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="font-mono text-4xl sm:text-5xl font-bold text-[var(--ink)]">
+                    {p.score}
+                  </span>
+                  <span className="font-mono text-xs text-[var(--mute)] tracking-wider">/100 COMPOSITE SCORE</span>
+                </div>
+                <p className="mt-4 font-mono text-[11px] text-[var(--mute)] break-all border-t border-[var(--line)] pt-3">
+                  ATTESTATION: {p.contentHash}
                 </p>
               </div>
-              <div className="pb-4">
-                <ScoreRing score={p.score} size={148} />
-              </div>
             </div>
 
-            <div className="relative mt-8 grid gap-x-6 gap-y-4 border-t border-paper/[0.07] pt-6 sm:grid-cols-4">
-              <Cell label="As of" value={ageLabel(p.updatedAt)} warn={stale} />
-              <Cell label="Method" value={p.methodologyVersion} mono small />
+            <div className="relative mt-8 grid gap-4 border-t border-[var(--line)] pt-6 grid-cols-2 sm:grid-cols-4">
+              <Cell label="AS OF" value={ageLabel(p.updatedAt)} warn={stale} />
+              <Cell label="METHOD" value={p.methodologyVersion} mono small />
               <Cell label="TVL" value={formatUsd(p.tvlUsd)} />
-              <Cell label="Analyst" value={p.analystId} mono small />
+              <Cell label="ANALYST" value={p.analystId} mono small />
             </div>
-
-            <p className="relative mt-5 break-all font-mono text-[10px] text-faint">
-              {p.contentHash}
-            </p>
           </div>
 
-          <p className="mt-5 text-[11px] leading-relaxed text-faint">
+          <p className="mt-5 text-[11px] leading-relaxed text-[var(--mute)] font-mono">
             Letter is not a prediction of price. It is a structured read of how this
             thing can fail. Not financial advice, not a credit rating.
           </p>
         </div>
 
-        <div className="lg:col-span-5">
-          <h1 className="font-display text-3xl leading-tight text-paper">{p.name}</h1>
-          <p className="mt-4 font-display text-[17px] leading-relaxed text-paper/90">
-            {paid ? p.dossierVerdict : p.verdict}
-          </p>
+        <div className="lg:col-span-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--mute)]">
+              PROTOCOL DOSSIER / SPECIMEN
+            </span>
+            <h1 className="mt-2 font-campaign text-4xl sm:text-5xl font-bold uppercase tracking-tight text-[var(--ink)]">
+              {p.name}
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-[var(--mute)]">
+              {paid ? p.dossierVerdict : p.verdict}
+            </p>
 
-          <div className="mt-7 space-y-3 border-t border-paper/[0.07] pt-5 text-[12.5px]">
-            <Row k="Chain focus" v={p.chainFocus} />
-            <Row k="Yield note" v={p.yieldNote} />
-            <Row k="7d change" v={`${p.delta7d >= 0 ? "+" : ""}${p.delta7d}`} signed />
+            <div className="mt-8 space-y-3 border-t border-[var(--line)] pt-6 text-[13px]">
+              <Row k="Chain focus" v={p.chainFocus} />
+              <Row k="Yield note" v={p.yieldNote} />
+              <Row k="7d change" v={`${p.delta7d >= 0 ? "+" : ""}${p.delta7d}`} signed />
+            </div>
           </div>
 
-          <div data-walkthrough="paywall-box" className="mt-7">
+          <div data-walkthrough="paywall-box" className="mt-8">
             {paid ? (
-              <p className="plate px-5 py-4 text-[13px] text-reserve">
-                Dossier unlocked. Valid 24 hours on this device.
-              </p>
+              <div className="brutalist-paywall-card text-center">
+                <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink)] font-bold">
+                  ✓ Dossier Unlocked · Valid 24h on this device
+                </p>
+              </div>
             ) : (
               <Paywall slug={p.slug} />
             )}
@@ -231,12 +249,19 @@ function Hero({
 
 function Axes({ p, paid }: { p: Protocol; paid: boolean }) {
   return (
-    <section data-walkthrough="axes-breakdown" className="mx-auto max-w-[1120px] px-5 py-10">
+    <section data-walkthrough="axes-breakdown" className="mx-auto max-w-[1320px] px-6 py-12 border-t border-[var(--line)]">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-display text-3xl text-paper">Nine axes</h2>
-        <p className="label-xs">Weights shown &middot; method {p.methodologyVersion}</p>
+        <div>
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--mute)]">
+            PRIMARY METRICS
+          </span>
+          <h2 className="mt-1 font-campaign text-3xl sm:text-4xl font-bold uppercase tracking-tight text-[var(--ink)]">
+            Nine axes
+          </h2>
+        </div>
+        <p className="font-mono text-xs uppercase text-[var(--mute)]">Weights shown &middot; method {p.methodologyVersion}</p>
       </div>
-      <div className="rule-draw my-6" />
+      <div className="my-6 border-b border-[var(--line)]" />
       {paid ? (
         <div>
           {p.axes.map((a, i) => (
@@ -252,16 +277,19 @@ function Axes({ p, paid }: { p: Protocol; paid: boolean }) {
 
 function KillShots({ p }: { p: Protocol }) {
   return (
-    <section data-walkthrough="killshots" className="mx-auto max-w-[1120px] px-5 py-10">
-      <h2 className="font-display text-3xl text-paper">What breaks this grade</h2>
-      <div className="rule-draw my-6" />
-      <ul className="grid gap-px bg-paper/[0.07] md:grid-cols-3">
+    <section data-walkthrough="killshots" className="mx-auto max-w-[1320px] px-6 py-12 border-t border-[var(--line)]">
+      <h2 className="font-campaign text-3xl sm:text-4xl font-bold uppercase tracking-tight text-[var(--ink)]">
+        What breaks this grade
+      </h2>
+      <div className="my-6 border-b border-[var(--line)]" />
+      <ul className="grid gap-4 md:grid-cols-3">
         {p.killShots.map((k) => (
-          <li key={k.title} className="bg-panel p-6">
-            <p className="label-xs text-stop">Kill shot</p>
-            <h3 className="mt-3 font-display text-lg leading-snug text-paper">{k.title}</h3>
-            <p className="mt-2.5 text-[13px] leading-relaxed text-quiet">{k.detail}</p>
-            <p className="label-xs mt-4 text-faint">Most exposed: {k.axis}</p>
+          <li key={k.title} className="relative border border-[var(--line)] bg-[var(--panel-subtle)] p-6">
+            <CropMark corner="tl" size={14} />
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[#a63a3a] font-bold">Kill shot</p>
+            <h3 className="mt-3 font-campaign text-xl font-bold uppercase text-[var(--ink)]">{k.title}</h3>
+            <p className="mt-2.5 text-[13px] leading-relaxed text-[var(--mute)]">{k.detail}</p>
+            <p className="font-mono text-[11px] mt-4 text-[var(--mute)] uppercase">Most exposed: {k.axis}</p>
           </li>
         ))}
       </ul>
@@ -271,49 +299,57 @@ function KillShots({ p }: { p: Protocol }) {
 
 function UnlockTable({ p }: { p: Protocol }) {
   return (
-    <section className="mx-auto max-w-[1120px] px-5 py-10">
-      <h2 className="font-display text-3xl text-paper">Unlock calendar</h2>
-      <div className="rule-draw my-6" />
-      <table className="ledger w-full text-left text-[13px]">
-        <thead>
-          <tr className="label-xs">
-            <th className="py-3 pr-6 font-normal">Date</th>
-            <th className="py-3 pr-6 font-normal">Amount</th>
-            <th className="py-3 pr-6 font-normal">% of float</th>
-            <th className="py-3 font-normal">Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          {p.unlocks.map((u) => (
-            <tr key={u.date + u.amount} className="border-t border-paper/[0.06]">
-              <td className="num sticky-col py-3.5 pr-6 font-mono text-[12px]">{u.date}</td>
-              <td className="py-3.5 pr-6 font-mono text-[12px] text-paper/85">{u.amount}</td>
-              <td className="num py-3.5 pr-6 font-mono text-[12px] text-gold">{u.pctOfFloat}%</td>
-              <td className="py-3.5 text-quiet">{u.note}</td>
+    <section className="mx-auto max-w-[1320px] px-6 py-12 border-t border-[var(--line)]">
+      <h2 className="font-campaign text-3xl sm:text-4xl font-bold uppercase tracking-tight text-[var(--ink)]">
+        Unlock calendar
+      </h2>
+      <div className="my-6 border-b border-[var(--line)]" />
+      <div className="overflow-x-auto">
+        <table className="specimen-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>% of float</th>
+              <th>Note</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {p.unlocks.map((u) => (
+              <tr key={u.date + u.amount}>
+                <td className="font-mono text-xs">{u.date}</td>
+                <td className="font-mono text-xs">{u.amount}</td>
+                <td className="font-mono text-xs font-bold text-[var(--gold)]">{u.pctOfFloat}%</td>
+                <td className="text-[var(--mute)]">{u.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
 
 function Related({ related }: { related: Protocol[] }) {
   return (
-    <section className="mx-auto max-w-[1120px] px-5 py-16">
-      <h2 className="font-display text-2xl text-paper">Related markets</h2>
-      <div className="rule-draw my-6" />
-      <ul className="grid gap-px bg-paper/[0.07] sm:grid-cols-2">
+    <section className="mx-auto max-w-[1320px] px-6 py-16 border-t border-[var(--line)]">
+      <h2 className="font-campaign text-2xl sm:text-3xl font-bold uppercase tracking-tight text-[var(--ink)]">
+        Related markets
+      </h2>
+      <div className="my-6 border-b border-[var(--line)]" />
+      <ul className="grid gap-4 sm:grid-cols-2">
         {related.map((r) => (
-          <li key={r.slug} className="bg-void">
-            <Link href={`/p/${r.slug}`} className="lift flex items-center gap-5 p-6">
-              <GradeLetter letter={r.letter} className="text-5xl" />
+          <li key={r.slug} className="border border-[var(--line)] bg-[var(--panel-subtle)] hover:border-[var(--line-strong)] transition-all">
+            <Link href={`/p/${r.slug}`} className="flex items-center gap-5 p-6 text-[var(--ink)] no-underline">
+              <span className={`grade-badge-solid grade-badge-solid--${r.letter}`}>
+                {r.letter}
+              </span>
               <div className="min-w-0">
-                <p className="font-display text-lg text-paper">{r.name}</p>
-                <p className="label-xs mt-1">{r.category}</p>
-                <p className="mt-2 line-clamp-1 text-[12px] text-quiet">{r.verdict}</p>
+                <p className="font-campaign text-lg uppercase font-bold text-[var(--ink)]">{r.name}</p>
+                <p className="font-mono text-[10px] uppercase text-[var(--mute)] tracking-wider mt-0.5">{r.category}</p>
+                <p className="mt-1 line-clamp-1 text-[12px] text-[var(--mute)]">{r.verdict}</p>
               </div>
-              <span className="num ml-auto font-mono text-[12px] text-faint">{r.score}</span>
+              <span className="font-mono text-sm ml-auto text-[var(--mute)] font-bold">{r.score}</span>
             </Link>
           </li>
         ))}
@@ -324,8 +360,8 @@ function Related({ related }: { related: Protocol[] }) {
 
 function Disclaimer({ p }: { p: Protocol }) {
   return (
-    <div className="mx-auto max-w-[1120px] px-5 pb-16">
-      <p className="border-t border-paper/[0.07] pt-6 text-[11px] leading-relaxed text-faint">
+    <div className="mx-auto max-w-[1320px] px-6 pb-16">
+      <p className="border-t border-[var(--line)] pt-6 font-mono text-[11px] leading-relaxed text-[var(--mute)]">
         Fidex is not financial advice and not a credit rating. It publishes a
         structured read of structural risk as of {ageLabel(p.updatedAt)}, under
         methodology {p.methodologyVersion}. Protocols cannot purchase a letter; they may
@@ -351,11 +387,11 @@ function Cell({
 }) {
   return (
     <div className="min-w-0">
-      <p className="label-xs">{label}</p>
+      <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{label}</p>
       <p
         className={`mt-1.5 truncate ${mono ? "font-mono" : ""} ${
           small ? "text-[11px]" : "text-[13px]"
-        } ${warn ? "text-caution" : "text-paper/85"}`}
+        } ${warn ? "text-[#a63a3a] font-bold" : "text-[var(--ink)]"}`}
       >
         {value}
       </p>
@@ -366,10 +402,10 @@ function Cell({
 function Row({ k, v, signed }: { k: string; v: string; signed?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <span className="label-xs">{k}</span>
+      <span className="font-mono text-xs uppercase text-[var(--mute)]">{k}</span>
       <span
-        className={`text-right text-[12.5px] ${signed ? "num font-mono" : ""} ${
-          signed ? (v.startsWith("-") ? "text-stop" : "text-reserve") : "text-paper/85"
+        className={`text-right text-[13px] ${signed ? "font-mono" : ""} ${
+          signed ? (v.startsWith("-") ? "text-[#a63a3a]" : "text-[#3b7a57]") : "text-[var(--ink)]"
         }`}
       >
         {v}
@@ -383,96 +419,101 @@ function LiveProtocolView({ p }: { p: LiveProtocol }) {
   const coveragePct = Math.round(scr.coverage * 100);
 
   return (
-    <article className="relative">
-      <div className="border-b border-paper/[0.07]">
-        <div className="mx-auto max-w-[1120px] px-5 pt-8">
-          <nav className="label-xs flex flex-wrap items-center gap-2 text-faint">
-            <Link href="/markets" className="hover:text-gold">Markets</Link>
+    <article className="lookbook min-h-screen relative">
+      <div className="border-b border-[var(--line)] bg-[var(--panel-subtle)]">
+        <div className="mx-auto max-w-[1320px] px-6 py-6">
+          <nav className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--mute)]">
+            <Link href="/markets" className="hover:text-[var(--ink)]">MARKETS</Link>
             <span>/</span>
-            <Link href="/arc" className="hover:text-gold">Live Universe</Link>
+            <Link href="/arc" className="hover:text-[var(--ink)]">LIVE UNIVERSE</Link>
             <span>/</span>
-            <span className="text-quiet">{p.category}</span>
+            <span className="uppercase">{p.category}</span>
             <span>/</span>
-            <span className="text-paper">{p.name}</span>
+            <span className="uppercase text-[var(--ink)] font-bold">{p.name}</span>
           </nav>
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <span className="label-xs border border-gold/30 bg-gold/10 px-2 py-0.5 text-gold">
-              Live Screened (DeFiLlama Feed)
+            <span className="font-mono text-xs border border-[var(--gold)]/30 bg-[var(--gold)]/10 px-2 py-0.5 text-[var(--gold)]">
+              LIVE SCREENED (DEFILLAMA FEED)
             </span>
-            <span className="label-xs text-faint">
-              Arc route: {p.arcRoute === "native" ? "Native on Arc" : "Bridged to Arc"}
+            <span className="font-mono text-xs text-[var(--mute)]">
+              ARC ROUTE: {p.arcRoute === "native" ? "NATIVE ON ARC" : "BRIDGED TO ARC"}
             </span>
-            <span className="label-xs text-faint">
-              Chains: {p.chains.join(", ")}
+            <span className="font-mono text-xs text-[var(--mute)]">
+              CHAINS: {p.chains.join(", ").toUpperCase()}
             </span>
           </div>
         </div>
       </div>
 
       <WalletGate protocolName={p.name} category={p.category}>
-        <section className="mx-auto max-w-[1120px] px-5 py-14">
-          <div className="grid gap-12 lg:grid-cols-12">
+        <section className="mx-auto max-w-[1320px] px-6 py-12 sm:py-16">
+          <div className="grid gap-12 lg:grid-cols-12 items-start">
             <div className="lg:col-span-7">
-              <div className="relative overflow-hidden border border-paper/[0.07] bg-panel p-8 sm:p-10">
+              <div className="relative border border-[var(--line)] bg-[var(--panel-subtle)] p-6 sm:p-10">
+                <CropMark corner="tl" size={20} />
+                <CropMark corner="br" size={20} />
+
                 <div className="flex flex-wrap items-center justify-between gap-6">
                   <div>
-                    <span className="label-xs text-gold">Ecosystem Protocol</span>
-                    <h1 className="mt-2 font-display text-4xl text-paper sm:text-5xl">{p.name}</h1>
-                    <p className="label-xs mt-2 text-quiet">
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--gold)]">Ecosystem Protocol</span>
+                    <h1 className="mt-2 font-campaign text-4xl sm:text-5xl font-bold uppercase tracking-tight text-[var(--ink)]">{p.name}</h1>
+                    <p className="font-mono text-xs mt-2 text-[var(--mute)] uppercase">
                       {p.category} &middot; {p.arcRoute === "native" ? "Native Deployment" : "Cross-Chain"}
                     </p>
                   </div>
                   {scr.letter ? (
                     <div className="text-right">
-                      <GradeLetter letter={scr.letter} className="text-6xl" />
-                      <p className="label-xs mt-1 text-gold">Screening Letter</p>
+                      <span className={`grade-badge-solid grade-badge-solid--${scr.letter} text-3xl px-4 py-2`}>
+                        {scr.letter}
+                      </span>
+                      <p className="font-mono text-[10px] uppercase tracking-widest mt-2 text-[var(--gold)]">Screening Letter</p>
                     </div>
                   ) : (
-                    <div className="rounded-[2px] border border-paper/15 bg-sunk/60 px-4 py-3 text-center">
-                      <p className="font-mono text-xl text-paper">{coveragePct}%</p>
-                      <p className="label-xs mt-1 text-faint">Measured Weight</p>
+                    <div className="border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-center">
+                      <p className="font-mono text-xl text-[var(--ink)] font-bold">{coveragePct}%</p>
+                      <p className="font-mono text-[10px] uppercase tracking-widest mt-1 text-[var(--mute)]">Measured Weight</p>
                     </div>
                   )}
                 </div>
 
-                <p className="mt-6 text-[14px] leading-relaxed text-quiet">
+                <p className="mt-6 text-[14px] leading-relaxed text-[var(--mute)]">
                   {p.description || "Protocol operating on Circle Arc, discovered through public on-chain intelligence."}
                 </p>
 
-                <div className="rule-draw my-6" />
+                <div className="my-6 border-b border-[var(--line)]" />
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div>
-                    <p className="label-xs">Arc TVL</p>
-                    <p className="num mt-1 font-mono text-base text-gold">${fmtShort(p.tvlUsd)}</p>
+                    <p className="font-mono text-[10px] uppercase text-[var(--mute)]">Arc TVL</p>
+                    <p className="font-mono text-base font-bold text-[var(--gold)] mt-1">${fmtShort(p.tvlUsd)}</p>
                   </div>
                   <div>
-                    <p className="label-xs">Total TVL</p>
-                    <p className="num mt-1 font-mono text-base text-paper/85">${fmtShort(p.totalTvlUsd)}</p>
+                    <p className="font-mono text-[10px] uppercase text-[var(--mute)]">Total TVL</p>
+                    <p className="font-mono text-base font-bold text-[var(--ink)] mt-1">${fmtShort(p.totalTvlUsd)}</p>
                   </div>
                   <div>
-                    <p className="label-xs">7d Change</p>
-                    <p className={`num mt-1 font-mono text-base ${p.change7d >= 0 ? "text-reserve" : "text-stop"}`}>
+                    <p className="font-mono text-[10px] uppercase text-[var(--mute)]">7d Change</p>
+                    <p className={`font-mono text-base font-bold mt-1 ${p.change7d >= 0 ? "text-[#3b7a57]" : "text-[#a63a3a]"}`}>
                       {p.change7d >= 0 ? "+" : ""}{p.change7d.toFixed(1)}%
                     </p>
                   </div>
                   <div>
-                    <p className="label-xs">Audits Listed</p>
-                    <p className="num mt-1 font-mono text-base text-paper/85">{p.auditLinks.length}</p>
+                    <p className="font-mono text-[10px] uppercase text-[var(--mute)]">Audits Listed</p>
+                    <p className="font-mono text-base font-bold text-[var(--ink)] mt-1">{p.auditLinks.length}</p>
                   </div>
                 </div>
 
                 {p.url && (
                   <div className="mt-6 flex flex-wrap gap-4 pt-2">
-                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="link-gold label-xs">
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--gold)] hover:underline uppercase">
                       Official Website &rarr;
                     </a>
                     {p.twitter && (
-                      <a href={`https://twitter.com/${p.twitter}`} target="_blank" rel="noopener noreferrer" className="link-gold label-xs">
+                      <a href={`https://twitter.com/${p.twitter}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--gold)] hover:underline uppercase">
                         Twitter / X &rarr;
                       </a>
                     )}
-                    <a href={`https://defillama.com/protocol/${p.slug}`} target="_blank" rel="noopener noreferrer" className="link-gold label-xs">
+                    <a href={`https://defillama.com/protocol/${p.slug}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--gold)] hover:underline uppercase">
                       DeFiLlama &rarr;
                     </a>
                   </div>
@@ -481,28 +522,28 @@ function LiveProtocolView({ p }: { p: LiveProtocol }) {
             </div>
 
             <div className="lg:col-span-5">
-              <div className="plate p-7">
-                <h3 className="font-display text-lg text-paper">Screening Coverage</h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-quiet">
+              <div className="brutalist-paywall-card">
+                <h3 className="font-campaign text-xl font-bold uppercase text-[var(--ink)]">Screening Coverage</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--mute)]">
                   Fidex requires at least 60% of compounding axis weight before publishing a formal letter. This protocol currently has {scr.measuredCount} of 8 compounding axes backed by public telemetry.
                 </p>
                 <div className="mt-5">
-                  <div className="flex justify-between text-[11px] font-mono text-faint">
+                  <div className="flex justify-between font-mono text-[11px] text-[var(--mute)]">
                     <span>Coverage</span>
                     <span>{coveragePct}% / 60% threshold</span>
                   </div>
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-[1px] bg-paper/10">
-                    <div className="h-full bg-gold transition-all" style={{ width: `${Math.min(100, coveragePct)}%` }} />
+                  <div className="mt-1.5 h-2 w-full overflow-hidden bg-[var(--line)]">
+                    <div className="h-full bg-[var(--gold)] transition-all" style={{ width: `${Math.min(100, coveragePct)}%` }} />
                   </div>
                 </div>
 
-                <div className="rule-draw my-6" />
+                <div className="my-6 border-b border-[var(--line)]" />
 
-                <h4 className="label-xs">Analyst Action</h4>
-                <p className="mt-2 text-[12px] leading-relaxed text-faint">
+                <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)]">Analyst Action</h4>
+                <p className="mt-2 text-[12px] leading-relaxed text-[var(--mute)]">
                   To move this protocol from automated screening to an official rating with full evidence, kill shots, and unlock schedules, request an analyst review in Studio.
                 </p>
-                <Link href="/studio" className="link-gold label-xs mt-4 inline-block">
+                <Link href="/studio" className="font-mono text-xs font-bold text-[var(--gold)] hover:underline uppercase mt-4 inline-block">
                   Open Analyst Studio &rarr;
                 </Link>
               </div>
@@ -510,38 +551,38 @@ function LiveProtocolView({ p }: { p: LiveProtocol }) {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1120px] px-5 pb-16">
-          <h2 className="font-display text-3xl text-paper">Evaluated & Screened Axes</h2>
-          <p className="mt-2 text-[13px] text-quiet">
+        <section className="mx-auto max-w-[1320px] px-6 pb-16">
+          <h2 className="font-campaign text-3xl sm:text-4xl font-bold uppercase tracking-tight text-[var(--ink)]">Evaluated & Screened Axes</h2>
+          <p className="mt-2 text-[13px] text-[var(--mute)]">
             Axes with verified public data are scored. Unmeasured axes require dedicated human review of deployed bytecodes and admin keys.
           </p>
-          <div className="rule-draw my-6" />
+          <div className="my-6 border-b border-[var(--line)]" />
 
-          <div className="divide-y divide-paper/[0.06] border-y border-paper/[0.06]">
+          <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
             {p.axes.map((a) => (
               <div key={a.id} className="py-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-display text-lg text-paper">
+                    <h3 className="font-campaign text-xl uppercase font-bold text-[var(--ink)]">
                       {a.id.charAt(0).toUpperCase() + a.id.slice(1).replace(/([A-Z])/g, " $1")}
                     </h3>
                     {a.score !== null ? (
-                      <span className="label-xs text-gold">Measured</span>
+                      <span className="font-mono text-[10px] text-[var(--gold)] uppercase border border-[var(--gold)]/30 px-1.5 py-0.5">Measured</span>
                     ) : (
-                      <span className="label-xs text-faint">Pending Analysis</span>
+                      <span className="font-mono text-[10px] text-[var(--mute)] uppercase border border-[var(--line)] px-1.5 py-0.5">Pending Analysis</span>
                     )}
                   </div>
                   {a.score !== null && (
-                    <span className="num font-mono text-sm text-paper">{a.score}/100</span>
+                    <span className="font-mono text-sm text-[var(--ink)] font-bold">{a.score}/100</span>
                   )}
                 </div>
-                <p className="mt-2 text-[13px] leading-relaxed text-paper/85">{a.summary}</p>
-                <p className="mt-1.5 max-w-[70ch] text-[12.5px] leading-relaxed text-quiet">{a.evidence}</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--ink)]">{a.summary}</p>
+                <p className="mt-1.5 max-w-[70ch] text-[12.5px] leading-relaxed text-[var(--mute)]">{a.evidence}</p>
                 {a.citations.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-3">
                     {a.citations.map((c) => (
                       <li key={c.href + c.label}>
-                        <a href={c.href} target="_blank" rel="noopener noreferrer" className="link-gold font-mono text-[10.5px] uppercase">
+                        <a href={c.href} target="_blank" rel="noopener noreferrer" className="font-mono text-[10.5px] text-[var(--gold)] uppercase hover:underline">
                           {c.kind} &middot; {c.label}
                         </a>
                       </li>
@@ -556,4 +597,3 @@ function LiveProtocolView({ p }: { p: LiveProtocol }) {
     </article>
   );
 }
-

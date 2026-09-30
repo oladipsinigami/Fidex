@@ -129,7 +129,7 @@ export function Paywall({
   // -------------------------------------------------------------------------
   if (!isConnected || !address) {
     return (
-      <div className="plate relative overflow-hidden border border-paper/15 p-6 shadow-2xl">
+      <div className="brutalist-paywall-card relative">
         <div className="flex items-center gap-2 text-gold">
           <span className="animate-pulse">
             <LockGlyph />
@@ -196,7 +196,7 @@ export function Paywall({
   // 2. CONNECTED STATE -> AUTHENTICATED UNLOCK GATE
   // -------------------------------------------------------------------------
   return (
-    <div className="plate border border-gold/30 p-6 shadow-2xl">
+    <div className="brutalist-paywall-card">
       <div className="mb-4 flex items-center justify-between border-b border-paper/[0.08] pb-3">
         <span className="label-xs flex items-center gap-1.5 text-reserve">
           <span className="h-2 w-2 rounded-full bg-reserve animate-pulse" />

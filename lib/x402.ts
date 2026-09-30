@@ -135,7 +135,7 @@ const hasProductionUrl = Boolean(
  * catch a bad deployment, so the guard stands down during the build phase and
  * fails on the first real request instead. See IS_BUILD_PHASE in lib/site.ts.
  */
-if (process.env.NODE_ENV === "production" && !hasProductionUrl && !IS_BUILD_PHASE) {
+if (typeof window === "undefined" && process.env.NODE_ENV === "production" && !hasProductionUrl && !IS_BUILD_PHASE) {
   throw new Error(
     "[Fidex FATAL] FIDEX_PUBLIC_URL (or ARCGRADE_PUBLIC_URL) is required in production. It becomes the x402 " +
       "`resource` URL, which the buyer must echo back to the facilitator; without it every " +

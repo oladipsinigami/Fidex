@@ -25,7 +25,13 @@ const vercelOrigin = vercelHost
     : `https://${vercelHost}`
   : undefined;
 
+const browserOrigin =
+  typeof window !== "undefined" && window.location?.origin
+    ? window.location.origin
+    : undefined;
+
 const RAW =
+  browserOrigin ??
   process.env.NEXT_PUBLIC_FIDEX_URL ??
   process.env.FIDEX_PUBLIC_URL ??
   process.env.NEXT_PUBLIC_ARCGRADE_URL ??

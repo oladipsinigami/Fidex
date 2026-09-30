@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Protocol } from "@/lib/types";
+import { Barcode } from "./Barcode";
+import { CropMark } from "./CropMark";
 
 export function LookbookHero({ featured }: { featured: Protocol }) {
   const root = useRef<HTMLElement>(null);
@@ -12,8 +15,10 @@ export function LookbookHero({ featured }: { featured: Protocol }) {
     if (!el) return;
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
-      el.style.setProperty("--mx", `${((e.clientX - r.left) / r.width) * 100}%`);
-      el.style.setProperty("--my", `${((e.clientY - r.top) / r.height) * 100}%`);
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      el.style.setProperty("--tilt-x", `${y * 5}deg`);
+      el.style.setProperty("--tilt-y", `${-x * 5}deg`);
     };
     el.addEventListener("pointermove", onMove);
     return () => el.removeEventListener("pointermove", onMove);
@@ -21,15 +26,10 @@ export function LookbookHero({ featured }: { featured: Protocol }) {
 
   return (
     <section ref={root} className="lookbook-hero">
-      <div className="lookbook-hero__still" aria-hidden />
-      <div className="lookbook-hero__reveal" aria-hidden />
-
       <div className="lookbook-hero__grid">
         <div className="lookbook-hero__copy">
-          <span className="lookbook-crop lookbook-crop--tl" aria-hidden />
-          <p className="lookbook-kicker">
-            Circle Arc · 5042002 · {featured.methodologyVersion}
-          </p>
+          <CropMark corner="tl" size={24} className="-top-4 -left-4 sm:-top-6 sm:-left-6" />
+
           <h1 className="lookbook-display">
             KNOW
             <br />
@@ -37,30 +37,59 @@ export function LookbookHero({ featured }: { featured: Protocol }) {
             <br />
             <span className="lookbook-display__last">
               FIRST
-              <span className="lookbook-pixel" aria-hidden />
+              <Barcode className="h-8 sm:h-12 w-20 sm:w-28 text-current inline-block ml-3" />
             </span>
           </h1>
+
           <p className="lookbook-lede">
-            A letter. A score. A dated dossier — issued before the deposit,
-            not after the exploit.
+            Institutional risk intelligence for uncertain markets.
           </p>
+
           <Link href="/markets" className="lookbook-cta">
-            Open the book
-            <span aria-hidden>↗</span>
+            <span>OPEN THE BOOK</span>
+            <span aria-hidden="true">↗</span>
           </Link>
         </div>
 
-        <aside className="lookbook-hero__meta">
-          <span className="lookbook-crop lookbook-crop--br" aria-hidden />
-          <p className="lookbook-meta-label">Issued plate</p>
-          <p className="lookbook-meta-name">{featured.name}</p>
-          <p className="lookbook-meta-score">
-            {featured.letter} · {featured.score}/100
-          </p>
-          <Link href={`/p/${featured.slug}`} className="lookbook-meta-link">
-            Read the plate →
-          </Link>
-        </aside>
+        <div className="lookbook-hero__asset">
+          <div className="lookbook-sculpture-wrap">
+            {/* Light Mode 3D Sculpture */}
+            <Image
+              src="/plates/letter-b-gold.jpg"
+              alt="Sculptural Letter B Rating Plate"
+              className="lookbook-sculpture-img block [html[data-theme='dark']_&]:hidden"
+              style={{
+                transform:
+                  "perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))",
+              }}
+              width={560}
+              height={560}
+              priority
+            />
+            {/* Dark Mode 3D Sculpture */}
+            <Image
+              src="/plates/letter-b-dark.jpg"
+              alt="Sculptural Letter B Rating Plate"
+              className="lookbook-sculpture-img hidden [html[data-theme='dark']_&]:block"
+              style={{
+                transform:
+                  "perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))",
+              }}
+              width={560}
+              height={560}
+              priority
+            />
+          </div>
+
+          <aside className="lookbook-hero__meta">
+            <CropMark corner="br" size={16} className="-bottom-2 -right-2" />
+            <p className="lookbook-meta-label">ISSUED PLATE</p>
+            <p className="lookbook-meta-name">MORPHO /</p>
+            <p className="lookbook-meta-score">
+              {featured.letter} · {featured.score}/100
+            </p>
+          </aside>
+        </div>
       </div>
     </section>
   );

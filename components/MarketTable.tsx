@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Letter, LiveProtocol } from "@/lib/types";
-import { GradeLetter } from "./RatingPlate";
-import { ageLabel, formatApy, formatUsd } from "@/lib/grade";
+import { formatUsd } from "@/lib/grade";
 import { screen } from "@/lib/screen";
 
 type Sort = "score" | "tvl" | "change" | "name";
@@ -152,249 +151,154 @@ export function MarketTable({
 
   return (
     <div>
-      {/* Scope Navigation Tabs */}
-      <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-paper/[0.08] pb-3">
-        <div data-walkthrough="market-tabs" className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setScope("all")}
-            className={`label-xs flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors ${
-              scope === "all"
-                ? "border-gold text-gold font-medium"
-                : "border-transparent text-quiet hover:text-paper"
-            }`}
-          >
-            <span>All Ecosystem</span>
-            <span className="font-mono text-[10px] text-faint">({allItems.length})</span>
-          </button>
-          <button
-            onClick={() => setScope("dossiers")}
-            className={`label-xs flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors ${
-              scope === "dossiers"
-                ? "border-gold text-gold font-medium"
-                : "border-transparent text-quiet hover:text-paper"
-            }`}
-          >
-            <span>Hand-Analysed Research Benchmarks</span>
-            <span className="font-mono text-[10px] text-gold/70">({dossierCount})</span>
-          </button>
-          <button
-            onClick={() => setScope("screened")}
-            className={`label-xs flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors ${
-              scope === "screened"
-                ? "border-gold text-gold font-medium"
-                : "border-transparent text-quiet hover:text-paper"
-            }`}
-          >
-            <span>Live Screened dApps</span>
-            <span className="font-mono text-[10px] text-faint">({liveCount})</span>
-          </button>
-          <button
-            onClick={() => setScope("assets")}
-            className={`label-xs flex items-center gap-1.5 border-b-2 px-3 py-2 transition-colors ${
-              scope === "assets"
-                ? "border-gold text-gold font-medium"
-                : "border-transparent text-quiet hover:text-paper"
-            }`}
-          >
-            <span>Assets & Tokens</span>
-            <span className="font-mono text-[10px] text-faint">({assetCount})</span>
-          </button>
+      {/* Scope Navigation & Quick Search */}
+      <div className="no-print mb-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="specimen-filter-bar mt-0">
+            {(
+              [
+                { key: "all", label: "All Specimen", count: allItems.length },
+                { key: "dossiers", label: "Research Benchmarks", count: dossierCount },
+                { key: "screened", label: "Live Telemetry", count: liveCount },
+                { key: "assets", label: "Assets & Tokens", count: assetCount },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setScope(t.key)}
+                className={`specimen-pill ${scope === t.key ? "is-active" : ""}`}
+              >
+                {t.label} ({t.count})
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Filter Input */}
+          <div className="relative min-w-[220px] max-w-xs">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search specimen or symbol…"
+              className="w-full border border-current/20 bg-transparent px-3 py-1.5 font-mono text-[12px] placeholder:opacity-40 focus:border-current focus:outline-none"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-2.5 top-1.5 font-mono text-xs opacity-50 hover:opacity-100"
+              >
+                &times;
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Quick Filter Input */}
-        <div className="relative min-w-[200px] max-w-xs">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name or symbol…"
-            className="w-full rounded-[2px] border border-paper/10 bg-panel px-3 py-1.5 font-mono text-[12px] text-paper placeholder:text-faint focus:border-gold/50 focus:outline-none"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-2.5 top-1.5 font-mono text-xs text-faint hover:text-paper"
-            >
-              &times;
-            </button>
-          )}
-        </div>
-      </div>
+        {/* Category Filter Pills & Sort Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+          <div className="specimen-filter-bar mt-0">
+            {categories.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCat(c)}
+                className={`specimen-pill ${cat === c ? "is-active" : ""}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
 
-      {/* Category Pills & Sort Controls */}
-      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-1.5">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              className={`label-xs rounded-[2px] border px-3 py-1.5 transition-colors ${
-                cat === c
-                  ? "border-gold/50 bg-gold/[0.08] text-gold"
-                  : "border-paper/10 text-quiet hover:border-gold/30 hover:text-paper"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="label-xs text-faint">Sort:</span>
-          {(
-            [
-              { key: "tvl", label: "TVL" },
-              { key: "score", label: "Score" },
-              { key: "change", label: "7d Momentum" },
-              { key: "name", label: "Name" },
-            ] as const
-          ).map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSort(s.key)}
-              className={`label-xs rounded-[2px] px-2.5 py-1 transition-colors ${
-                sort === s.key ? "text-gold bg-gold/10" : "text-faint hover:text-paper"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">Sort:</span>
+            {(
+              [
+                { key: "tvl", label: "TVL" },
+                { key: "score", label: "Score" },
+                { key: "change", label: "7d Momentum" },
+                { key: "name", label: "Name" },
+              ] as const
+            ).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={`specimen-pill text-[9px] py-1 px-2.5 ${
+                  sort === s.key ? "is-active" : ""
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* The Ledger Table */}
+      {/* The Specimen Ledger Table */}
       <div className="overflow-x-auto">
-        <table className="ledger w-full min-w-[880px] text-left text-[13px]">
+        <table className="specimen-table min-w-[920px]">
           <thead>
-            <tr className="label-xs border-b border-paper/[0.08]">
-              <th className="sticky-col py-3 pr-6 font-normal">Protocol / Asset</th>
-              <th className="py-3 pr-6 font-normal">Arc Route</th>
-              <th className="py-3 pr-6 font-normal">Rating / Coverage</th>
-              <th className="py-3 pr-6 font-normal">Score</th>
-              <th className="py-3 pr-6 font-normal">&Delta; 7d</th>
-              <th className="py-3 pr-6 font-normal">Arc TVL</th>
-              <th className="py-3 pr-6 font-normal">Yield / Utility</th>
-              <th className="py-3 font-normal">Status</th>
+            <tr>
+              <th className="w-16">Grade</th>
+              <th>Protocol / Specimen</th>
+              <th>Category</th>
+              <th className="text-right">TVL</th>
+              <th>Risk Verdict</th>
+              <th className="text-right w-36">Action</th>
             </tr>
           </thead>
           <tbody>
             {view.map((item) => (
-              <tr key={item.slug} className="group border-t border-paper/[0.06] hover:bg-gold/[0.02]">
-                {/* Protocol / Asset Name & Monogram */}
-                <td className="sticky-col py-4 pr-6">
-                  <Link href={`/p/${item.slug}`} className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 items-center justify-center border border-gold/20 font-mono text-[10px] tracking-[0.1em] text-gold">
+              <tr key={item.slug}>
+                {/* Grade Stamp */}
+                <td>
+                  {item.letter ? (
+                    <span className={`grade-badge-solid grade-badge-solid--${item.letter}`}>
+                      {item.letter}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-xs opacity-60">{item.coveragePct}% cov</span>
+                  )}
+                </td>
+
+                {/* Protocol Name */}
+                <td>
+                  <Link href={`/p/${item.slug}`} className="flex items-center gap-3 no-underline text-inherit group">
+                    <span className="flex h-6 w-6 items-center justify-center border border-current/20 font-mono text-[10px] font-bold">
                       {item.monogram}
                     </span>
-                    <span>
-                      <span className="block text-paper group-hover:text-gold transition-colors font-medium">
+                    <div>
+                      <span className="font-semibold group-hover:underline block">
                         {item.name}
                       </span>
-                      <span className="label-xs text-quiet">{item.category}</span>
-                    </span>
+                      <span className="font-mono text-[11px] opacity-60 block">
+                        {item.chainFocus}
+                      </span>
+                    </div>
                   </Link>
                 </td>
 
-                {/* Arc Route */}
-                <td className="py-4 pr-6 text-quiet text-[12px]">{item.chainFocus}</td>
-
-                {/* Rating / Coverage */}
-                <td className="py-4 pr-6">
-                  {item.letter ? (
-                    <div className="flex items-center gap-2">
-                      <GradeLetter letter={item.letter} className="text-3xl" />
-                      {item.kind === "live" && (
-                        <span className="label-xs text-[9px] border border-gold/20 bg-gold/5 px-1 py-0.5 text-gold">
-                          Screen
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-[2px] border border-paper/15 bg-panel px-2 py-1 font-mono text-[11px] text-paper/80">
-                        {item.coveragePct}% cov
-                      </span>
-                    </div>
-                  )}
+                {/* Category */}
+                <td className="text-xs uppercase tracking-wider opacity-75 font-mono">
+                  {item.category}
                 </td>
 
-                {/* Score */}
-                <td className="num py-4 pr-6 font-mono text-[13px] text-paper/85">
-                  {item.score !== null ? (
-                    item.score
-                  ) : (
-                    <span className="text-faint">—</span>
-                  )}
+                {/* TVL */}
+                <td className="text-right font-mono font-medium text-xs">
+                  <div>{formatUsd(item.liveTvlUsd ?? item.tvlUsd)}</div>
+                  <span className="text-[10px] uppercase tracking-widest opacity-50 block">
+                    {item.liveTvlUsd == null ? "snapshot" : "live telemetry"}
+                  </span>
                 </td>
 
-                {/* 7d Delta */}
-                <td
-                  className={`num py-4 pr-6 font-mono text-[12px] ${
-                    item.delta7d > 0
-                      ? "text-reserve"
-                      : item.delta7d < 0
-                      ? "text-stop"
-                      : "text-faint"
-                  }`}
-                >
-                  {item.delta7d > 0 ? "+" : ""}
-                  {typeof item.delta7d === "number" ? item.delta7d.toFixed(1) : item.delta7d}%
+                {/* Risk Verdict */}
+                <td className="text-xs opacity-80 max-w-xs">
+                  <div className="line-clamp-1 font-mono text-[11px]">
+                    {item.score !== null ? `Score ${item.score}/100` : "Under Screen"} · {item.yieldNote}
+                  </div>
                 </td>
 
-                {/* Arc TVL. `tvlSource` is honest about where the number came from:
-                    a live DeFiLlama reading, or the stored analyst snapshot. The
-                    stored values drifted by up to 100% before this existed. */}
-                <td className="num py-4 pr-6 font-mono text-[12px] text-paper/90 font-medium">
-                  {formatUsd(item.liveTvlUsd ?? item.tvlUsd)}
-                  {item.liveTvlUsd == null ? (
-                    <span
-                      className="mt-0.5 block text-[10px] uppercase tracking-wider text-faint"
-                      title={`Analyst snapshot from ${item.updatedAt?.slice(0, 10) ?? "review date"} — not live`}
-                    >
-                      snapshot
-                    </span>
-                  ) : (
-                    <span
-                      className="mt-0.5 block text-[10px] uppercase tracking-wider text-reserve/70"
-                      title="Live from DeFiLlama"
-                    >
-                      live
-                    </span>
-                  )}
-                </td>
-
-                {/* Yield / Utility */}
-                <td className="py-4 pr-6">
-                  {item.apy !== null ? (
-                    <div>
-                      <span className="num font-mono text-[12px] text-paper/80">
-                        {formatApy(item.apy)}
-                      </span>
-                      <span className="mt-0.5 block max-w-[180px] truncate text-[11px] text-faint">
-                        {item.yieldNote}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[12px] text-quiet max-w-[180px] truncate block">
-                      {item.yieldNote}
-                    </span>
-                  )}
-                </td>
-
-                {/* Status / Updated */}
-                <td className="py-4">
-                  {item.kind === "dossier" ? (
-                    <span
-                      className={`num font-mono text-[11px] ${
-                        item.isStale ? "text-caution" : "text-gold"
-                      }`}
-                    >
-                      Benchmark ({ageLabel(item.updatedAt)})
-                    </span>
-                  ) : (
-                    <span className="num font-mono text-[11px] text-quiet">
-                      Live Telemetry
-                    </span>
-                  )}
+                {/* Action */}
+                <td className="text-right">
+                  <Link href={`/p/${item.slug}`} className="lookbook-connect-btn inline-block no-underline">
+                    VIEW PLATE ↗
+                  </Link>
                 </td>
               </tr>
             ))}
