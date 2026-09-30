@@ -397,6 +397,39 @@ try {
 
   console.log(`   buyer signed authorisation (${header.length} b64 chars)`);
 
+  /**
+   * Balances BEFORE the unlock, so the payment can be proven rather than assumed.
+   *
+   * A 200 proves the server issued a receipt. It does not prove USDC moved, and
+   * in the batched Gateway scheme the seller is credited inside the Gateway
+   * contract's internal ledger, so no ERC-20 Transfer is emitted to the seller
+   * at all. Reading only on-chain transfers therefore shows the buyer paying the
+   * Gateway escrow wallet and the seller apparently receiving nothing -- which
+   * reads as a failure when it is the expected shape.
+   *
+   * availableBalance(asset, account) lives on the Gateway wallet proxy, so both
+   * arguments are required; passing one is an encode error, not a zero.
+   */
+  const GATEWAY_WALLET = NETWORK === "mainnet"
+    ? "0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"
+    : "0x0077777d7EBA4688BDeF3E311b846F25870A19B9";
+  const ARC_USDC = "0x3600000000000000000000000000000000000000";
+
+  const gatewayBalance = async (account) => {
+    // availableBalance(address asset, address account) -- asset first. Encoding
+    // these the other way round returns a valid-looking call that reads the
+    // wrong slot, so the order is verified against `cast calldata` rather than
+    // trusted.
+    const res = await rpc("eth_call", [{
+      to: GATEWAY_WALLET,
+      data: "0x3ccb64ae" + ARC_USDC.slice(2).padStart(64, "0") + account.slice(2).padStart(64, "0"),
+    }, "latest"]);
+    return res && res !== "0x" ? BigInt(res) : 0n;
+  };
+
+  const sellerBefore = await gatewayBalance(PAY_TO);
+  const buyerBefore = await gatewayBalance(account.address);
+
   // 3. Redeem it.
   const paid = await fetch(`${URL}/api/v1/unlock`, {
     method: "POST",
@@ -433,6 +466,46 @@ try {
   if (unlocked.status !== 200) {
     throw new Error("receipt did not unlock the resource");
   }
+
+  /**
+   * 5. Prove the money moved.
+   *
+   * Everything above is the server's own word for it. This reads the Gateway
+   * ledger, which is the only place a batched settlement is visible: the
+   * facilitator pulls from the buyer into the Gateway wallet and credits the
+   * seller internally, so an ERC-20 Transfer to the seller never happens and
+   * the buyer may deposit more than one payment's worth.
+   */
+  const sellerAfter = await gatewayBalance(PAY_TO);
+  const buyerAfter = await gatewayBalance(account.address);
+  const expected = BigInt(paidBody.paid ?? "0");
+
+  console.log(`\n5. Gateway ledger       ${GATEWAY_WALLET}`);
+  console.log(`   seller  ${PAY_TO}`);
+  console.log(`     before              ${sellerBefore}`);
+  console.log(`     after               ${sellerAfter}`);
+  console.log(`   buyer   ${account.address}`);
+  console.log(`     before              ${buyerBefore}`);
+  console.log(`     after               ${buyerAfter}`);
+
+  const credited = sellerAfter - sellerBefore;
+  const debited = buyerBefore - buyerAfter;
+
+  if (credited < expected) {
+    throw new Error(
+      `seller was credited ${credited}, expected at least ${expected}. ` +
+        `A 200 was returned but the Gateway ledger shows no matching credit, ` +
+        `so the receipt would not survive a real withdrawal.`,
+    );
+  }
+  if (buyerBefore > 0n && debited !== credited) {
+    console.log(
+      `   note: buyer debited ${debited} but seller was credited ${credited} -- ` +
+        `a deposit larger than the purchase, which is expected when the buyer ` +
+        `pre-funds its Gateway balance.`,
+    );
+  }
+  console.log(`\n   seller credited ${credited} atomic USDC (expected >= ${expected})`);
 
   console.log("\nLIVE SETTLEMENT OK");
 } finally {

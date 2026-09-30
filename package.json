@@ -25,6 +25,7 @@
     "verify:attest:live": "node --experimental-strip-types scripts/verify-attest-live.mjs",
     "verify:challenge": "node scripts/check-challenge.mjs",
     "verify:drift": "node --experimental-strip-types scripts/check-drift.mjs",
+    "verify:gateway:encoding": "node scripts/verify-gateway-encoding.mjs",
     "verify:leak": "node scripts/check-ssr-leak.mjs",
     "verify:onchain": "node scripts/test-onchain-verify.mjs",
     "verify:payments": "node scripts/verify-payment.mjs",
