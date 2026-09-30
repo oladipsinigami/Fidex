@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces, Oswald } from "next/font/google";
 import "./globals.css";
+import "./lookbook.css";
 import { SITE_URL } from "@/lib/site";
-import { Nav } from "@/components/Nav";
+import { LookbookNav } from "@/components/LookbookNav";
 import { Footer } from "@/components/Footer";
 import { ToastHost } from "@/components/Toast";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -27,6 +28,12 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+const oswald = Oswald({
+  variable: "--font-oswald",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -47,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${oswald.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-void text-paper">
         <Providers>
@@ -55,7 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <CommandPalette />
           <TutorialModal />
           <WalkthroughTour />
-          <Nav />
+          <LookbookNav />
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
@@ -63,4 +70,3 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     </html>
   );
 }
-
