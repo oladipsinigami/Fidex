@@ -365,7 +365,7 @@ try {
       await migrate();
       break;
     case "env":
-      pushEnv();
+      await pushEnv();
       break;
     case "deploy":
       deploy();
@@ -380,7 +380,13 @@ try {
       }
       createTurso();
       await migrate();
-      pushEnv();
+      // Must be awaited. pushEnv is async and returns at its first fetch, so
+      // without await deploy() below starts immediately and the build races the
+      // env push. NEXT_PUBLIC_ values are inlined at build time, so they would
+      // be baked in as undefined while a later runtime read of FIDEX_PAY_TO
+      // still worked -- which is exactly the confusing half-configured state
+      // this produced.
+      await pushEnv();
       deploy();
       const problems = await smoke();
       console.log("  Next: run `npm run settle:live` with a MAINNET buyer key to prove real settlement.\n");
