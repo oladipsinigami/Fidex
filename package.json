@@ -17,6 +17,7 @@
     "verify:drift": "node --experimental-strip-types scripts/check-drift.mjs",
     "deploy:doctor": "node scripts/deploy.mjs doctor",
     "deploy": "node scripts/deploy.mjs all",
+    "deploy:registry": "node scripts/deploy-registry.mjs testnet",
     "verify:payments": "node scripts/verify-payment.mjs",
     "verify:onchain": "node scripts/test-onchain-verify.mjs",
     "verify:leak": "node scripts/check-ssr-leak.mjs",
