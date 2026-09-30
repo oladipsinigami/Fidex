@@ -7,7 +7,21 @@ import type { Protocol } from "@/lib/types";
 import { Barcode } from "./Barcode";
 import { CropMark } from "./CropMark";
 
-export function LookbookHero({ featured }: { featured: Protocol }) {
+/**
+ * Only the two fields actually rendered here.
+ *
+ * This is a client component, so every prop is serialised into the RSC payload
+ * embedded in the HTML. Passing the whole `Protocol` shipped `dossierVerdict`
+ * and every axis `evidence` to anyone loading the homepage without paying,
+ * even though none of it was rendered. The narrowed type stops that being
+ * accidental; the call site must narrow the object too, because the type alone
+ * does not change what Next.js serialises at runtime.
+ */
+export function LookbookHero({
+  featured,
+}: {
+  featured: Pick<Protocol, "letter" | "score">;
+}) {
   const root = useRef<HTMLElement>(null);
 
   useEffect(() => {

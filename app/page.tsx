@@ -15,7 +15,13 @@ export default async function Home() {
 
   return (
     <div className="lookbook">
-      <LookbookHero featured={featured} />
+      {/*
+        Narrowed deliberately. LookbookHero is a client component, so Next.js
+        serialises the entire prop into the HTML flight payload. Handing it the
+        full `featured` protocol leaked dossierVerdict and all nine axis
+        evidence strings to every anonymous homepage visitor.
+      */}
+      <LookbookHero featured={{ letter: featured.letter, score: featured.score }} />
 
       <section className="lookbook-strip">
         <span>Issued</span>
