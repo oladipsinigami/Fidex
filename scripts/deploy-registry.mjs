@@ -107,6 +107,7 @@ env.REGISTRY_OWNER = owner;
 if (S.INITIAL_ANALYSTS) env.INITIAL_ANALYSTS = S.INITIAL_ANALYSTS;
 
 console.log(`  owner      : ${owner}`);
+console.log(`  analysts   : ${env.INITIAL_ANALYSTS || "(none -- the registry will accept NO attestations)"}`);
 
 const args = [
   "script",
@@ -161,7 +162,27 @@ if (r.status !== 0) {
 const addr = (out.match(/FidexRegistry deployed at:\s*(0x[0-9a-fA-F]{40})/) || [])[1];
 if (addr) {
   console.log(`\n  address : ${addr}`);
-  if (broadcast) {
+
+  /**
+   * On mainnet, do NOT rewrite the app config as a side effect.
+   *
+   * Auto-writing NEXT_PUBLIC_FIDEX_NETWORK=mainnet here is a trap: the next
+   * unrelated `npm run deploy` -- a UI fix, say -- would then push mainnet to
+   * production and flip live payments to an untested chain. Deploying a
+   * contract and arming the app for that chain are separate decisions and
+   * should be separate commands. Testnet keeps the convenience because there is
+   * nothing to break.
+   */
+  const configure = process.argv.includes("--configure");
+
+  if (broadcast && net === "mainnet" && !configure) {
+    console.log(`\n  NOT writing to .env.deploy.local (mainnet requires --configure).`);
+    console.log(`  The app is still pointed at testnet and stays that way until you run:`);
+    console.log(`    node scripts/deploy-registry.mjs mainnet --broadcast --configure`);
+    console.log(`\n  To verify the mainnet registry before configuring the app:`);
+    console.log(`    cast code ${addr} --rpc-url ${rpc}`);
+    console.log(`    cast call ${addr} "owner()(address)" --rpc-url ${rpc}`);
+  } else if (broadcast) {
     const next = `\nNEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS=${addr}\nNEXT_PUBLIC_FIDEX_NETWORK=${net}\n`;
     const cur = readFileSync(SECRETS, "utf8");
     const updated = cur
