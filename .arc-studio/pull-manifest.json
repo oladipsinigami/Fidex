@@ -12,6 +12,18 @@
     "ARCGRADE_AGENT.md": {
       "hash": "b79383db8edaa4202249481d2ec37f967ebaea5b3358a2c2fc74dc00c261c123",
       "pulledAt": "2026-09-27T22:42:59.848Z"
+    },
+    "contracts/script/DeployFidex.s.sol": {
+      "hash": "58faa9d04329c75894c50db21ff5cf7e764eb165a9e3c11b2bdb20b69e6c84fd",
+      "pulledAt": "2026-09-30T13:48:09.598Z"
+    },
+    "contracts/test/FidexRegistry.t.sol": {
+      "hash": "724c9f710faaf8ed649d93d5ae004018f4a4da6e12eea63eaec3d1ef8cb865e4",
+      "pulledAt": "2026-09-30T13:48:09.602Z"
+    },
+    "contracts/src/FidexRegistry.sol": {
+      "hash": "ca17f86ae1b18133ed417589ce0d8cdfff66eb142e1bc76e4e91957be399b704",
+      "pulledAt": "2026-09-30T13:48:09.604Z"
     }
   }
 }

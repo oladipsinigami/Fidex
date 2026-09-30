@@ -14,11 +14,20 @@ import assert from "node:assert";
 import { spawn } from "node:child_process";
 import { privateKeyToAccount } from "viem/accounts";
 
+/**
+ * Must match the value injected into the spawned server below, or the signature
+ * is built for one verifyingContract and checked against another. A well-known
+ * burn address keeps the verification path under test without pretending to be
+ * a real registry deployment.
+ */
+const REGISTRY_ADDRESS =
+  process.env.NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS ?? "0x000000000000000000000000000000000000dEaD";
+
 const ATTESTATION_DOMAIN = {
   name: "Fidex Studio",
   version: "1",
   chainId: 5042002,
-  verifyingContract: process.env.NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS || process.env.NEXT_PUBLIC_ARCGRADE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000",
+  verifyingContract: REGISTRY_ADDRESS,
 };
 
 const ATTESTATION_TYPES = {
@@ -62,6 +71,13 @@ if (!isRunning) {
         ARCGRADE_SECRET: process.env.ARCGRADE_SECRET ?? "attestation-test-only-not-a-real-key",
         FIDEX_PUBLIC_URL: BASE_URL,
         ARCGRADE_PUBLIC_URL: BASE_URL,
+        // The attestation domain needs a real verifyingContract. It previously
+        // fell back to the zero address, which meant the suite signed AND
+        // verified against 0x000...0 and passed without checking any deployed
+        // contract. A well-known burn address keeps the signature verification
+        // path under test without pretending to be a real registry.
+        NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS: REGISTRY_ADDRESS,
+        NEXT_PUBLIC_FIDEX_NETWORK: "testnet",
       },
       stdio: ["ignore", "ignore", "inherit"],
     }
@@ -150,6 +166,77 @@ try {
   assert.strictEqual(queryJson.attestations[0].analystAddress, analyst.address.toLowerCase());
 
   console.log("\nPASS: EIP-712 Analyst Cryptographic Attestation successfully signed, verified, and persisted to SQLite!");
+
+  /**
+   * Fail-closed guard: the signing domain must never be allowed to verify
+   * against the zero address.
+   *
+   * With NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS unset, lib/attestation.ts falls back
+   * to 0x000...0. The server used to verify against that same constant, so the
+   * endpoint reported a cryptographically verified attestation while having
+   * checked no contract at all. It now returns 503 instead.
+   *
+   * Exercised through a fresh process because the domain is resolved at module
+   * load, and NEXT_PUBLIC_* values are inlined at build time.
+   */
+  console.log("\n--- fail-closed when no registry is configured ---");
+  const UNCONFIGURED_PORT = PORT + 1;
+  const unconfigured = spawn(
+    process.execPath,
+    ["node_modules/next/dist/bin/next", "start", "-p", String(UNCONFIGURED_PORT)],
+    {
+      env: {
+        ...process.env,
+        FIDEX_SECRET: "attestation-test-only-not-a-real-key",
+        ARCGRADE_SECRET: "attestation-test-only-not-a-real-key",
+        FIDEX_PUBLIC_URL: `http://127.0.0.1:${UNCONFIGURED_PORT}`,
+        ARCGRADE_PUBLIC_URL: `http://127.0.0.1:${UNCONFIGURED_PORT}`,
+        // Explicitly the zero address: this is the configuration under test.
+        NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS: "0x0000000000000000000000000000000000000000",
+        NEXT_PUBLIC_FIDEX_NETWORK: "testnet",
+      },
+      stdio: ["ignore", "ignore", "inherit"],
+    },
+  );
+
+  try {
+    let up2 = false;
+    for (let i = 0; i < 60; i++) {
+      if (unconfigured.exitCode !== null) break;
+      try {
+        await fetch(`http://127.0.0.1:${UNCONFIGURED_PORT}/api/v1/grade/aave-v4-arc/summary`);
+        up2 = true;
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    assert(up2, "unconfigured server never became ready");
+
+    const res2 = await fetch(`http://127.0.0.1:${UNCONFIGURED_PORT}/api/v1/attest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug: "aave-v4-arc",
+        letter: "A",
+        score: 85,
+        analystAddress: analyst.address,
+        signature,
+        timestamp,
+      }),
+    });
+    const json2 = await res2.json().catch(() => ({}));
+    assert.strictEqual(
+      res2.status,
+      503,
+      `expected 503 registry_not_configured, got ${res2.status}`,
+    );
+    assert.strictEqual(json2.error, "registry_not_configured");
+    assert(!json2.attestationId, "no attestation may be recorded without a registry");
+    console.log(`PASS: refused with 503 registry_not_configured (status=${res2.status})`);
+  } finally {
+    unconfigured.kill();
+  }
 } finally {
   if (appProcess) {
     appProcess.kill();

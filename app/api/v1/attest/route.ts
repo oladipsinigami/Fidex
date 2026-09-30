@@ -5,7 +5,7 @@ import { getProtocol } from "@/data/protocols";
 
 export const dynamic = "force-dynamic";
 
-import { ATTESTATION_DOMAIN, ATTESTATION_TYPES } from "@/lib/attestation";
+import { ATTESTATION_DOMAIN, ATTESTATION_TYPES, REGISTRY_UNCONFIGURED } from "@/lib/attestation";
 
 /**
  * GET /api/v1/attest?slug=<slug>
@@ -63,6 +63,27 @@ export async function POST(req: Request) {
 
   if (!/^0x[a-fA-F0-9]{130}$/.test(signature)) {
     return NextResponse.json({ error: "invalid_signature_format" }, { status: 400 });
+  }
+
+  /**
+   * Refuse to "verify" anything when no registry is configured.
+   *
+   * Without this, the signature is checked against a domain whose
+   * verifyingContract is the zero address. That always passes for a signature
+   * minted the same way, so the endpoint would report a cryptographically
+   * verified analyst attestation while having checked nothing on-chain. A
+   * stored attestation is a trust claim, so this has to fail closed.
+   */
+  if (REGISTRY_UNCONFIGURED) {
+    return NextResponse.json(
+      {
+        error: "registry_not_configured",
+        message:
+          "NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS is unset, so there is no registry to verify against. " +
+          "Refusing to record an attestation that was checked against the zero address.",
+      },
+      { status: 503 },
+    );
   }
 
   try {
