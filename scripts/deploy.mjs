@@ -106,7 +106,10 @@ function productionDomain() {
 
 function doctor() {
   console.log("\n=== deploy doctor ===\n");
-  const required = ["VERCEL_TOKEN", "TURSO_AUTH_TOKEN", "FIDEX_PAY_TO", "FIDEX_SECRET"];
+  const required = [
+    "VERCEL_TOKEN", "TURSO_AUTH_TOKEN", "FIDEX_PAY_TO", "FIDEX_SECRET",
+    "NEXT_PUBLIC_FIDEX_NETWORK", "NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS",
+  ];
   const optional = ["TURSO_DATABASE_URL", "VERCEL_PRODUCTION_DOMAIN", "VERCEL_PROJECT_NAME"];
   let bad = 0;
   for (const k of required) {
@@ -126,6 +129,30 @@ function doctor() {
   if (has("FIDEX_NETWORK") && S.FIDEX_NETWORK === "mainnet" && !productionDomain()) {
     console.error("  WARNING: mainnet with no known public URL. FIDEX_PUBLIC_URL is required");
     console.error("           in production and becomes the x402 resource buyers echo back.");
+  }
+
+  /**
+   * The attestation chain id comes from NEXT_PUBLIC_FIDEX_NETWORK only. A
+   * disagreement with FIDEX_NETWORK produces signatures that verify against
+   * nothing, which looks like a signing bug rather than a config bug.
+   */
+  if (has("NEXT_PUBLIC_FIDEX_NETWORK") && has("FIDEX_NETWORK")) {
+    const a = S.FIDEX_NETWORK.toLowerCase();
+    const b = S.NEXT_PUBLIC_FIDEX_NETWORK.toLowerCase();
+    if (a !== b) {
+      console.error(
+        `\n  ERROR: FIDEX_NETWORK is "${a}" but NEXT_PUBLIC_FIDEX_NETWORK is "${b}".\n` +
+          "         The attestation domain uses the NEXT_PUBLIC_ value for its chain id.",
+      );
+      bad++;
+    }
+  }
+  if (has("NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS") && /^0x0+$/i.test(S.NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS)) {
+    console.error(
+      "\n  ERROR: NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS is the zero address, so every\n" +
+        "         attestation returns 503 registry_not_configured.",
+    );
+    bad++;
   }
   console.log(bad ? `\n  ${bad} required value(s) missing.\n` : "\n  Ready.\n");
   return bad;
@@ -195,6 +222,20 @@ async function pushEnv() {
     ["FIDEX_SECRET", S.FIDEX_SECRET],
     ["FIDEX_NETWORK", S.FIDEX_NETWORK || "mainnet"],
     ["FIDEX_X402_MODE", S.FIDEX_X402_MODE || "gateway"],
+    /**
+     * These two are not optional extras. lib/attestation.ts and
+     * lib/arcchain.ts read only the NEXT_PUBLIC_ names -- FIDEX_NETWORK is
+     * never consulted for the chain id.
+     *
+     * Omitting NEXT_PUBLIC_FIDEX_NETWORK makes IS_TESTNET true by default, so
+     * on mainnet the domain would bind chainId 5042002 against a registry
+     * living on 5042 and every attestation signature would revert
+     * InvalidSignature. Omitting the registry address makes POST
+     * /api/v1/attest return 503 registry_not_configured. Both fail quietly, so
+     * they are pushed explicitly and checked for disagreement below.
+     */
+    ["NEXT_PUBLIC_FIDEX_NETWORK", S.NEXT_PUBLIC_FIDEX_NETWORK],
+    ["NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS", S.NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS],
   ];
   if (domain) {
     pairs.push(["FIDEX_PUBLIC_URL", domain]);
@@ -204,7 +245,31 @@ async function pushEnv() {
     pairs.push(["NEXT_PUBLIC_ARCGRADE_URL", domain]);
   }
   const missing = pairs.filter(([, v]) => !v);
-  if (missing.length) throw new Error(`refusing to deploy with empty: ${missing.map(([k]) => k).join(", ")}`);
+  if (missing.length) {
+    throw new Error(
+      `refusing to deploy with empty: ${missing.map(([k]) => k).join(", ")}\n` +
+        "  Set them in .env.deploy.local. NEXT_PUBLIC_FIDEX_NETWORK and\n" +
+        "  NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS are what the attestation domain\n" +
+        "  reads; FIDEX_NETWORK alone does not configure it.",
+    );
+  }
+
+  /**
+   * The two network variables are read by different code. If they disagree the
+   * attestation domain binds the wrong chain id, which surfaces as every
+   * signature failing rather than as an obvious error, so refuse to deploy.
+   */
+  const serverNet = (S.FIDEX_NETWORK || "mainnet").toLowerCase();
+  const publicNet = S.NEXT_PUBLIC_FIDEX_NETWORK.toLowerCase();
+  if (serverNet !== publicNet) {
+    throw new Error(
+      `refusing to deploy: FIDEX_NETWORK is "${serverNet}" but ` +
+        `NEXT_PUBLIC_FIDEX_NETWORK is "${publicNet}".\n` +
+        "  The attestation domain uses the NEXT_PUBLIC_ value for its chain id, " +
+        "so a mismatch signs against the wrong chain.",
+    );
+  }
+
   if (!has("VERCEL_TOKEN")) throw new Error("VERCEL_TOKEN is required to push env vars");
 
   const proj = vercelProject();
