@@ -143,18 +143,8 @@ export function WalkthroughTour() {
 
   const step = WALKTHROUGH_STEPS[stepIndex];
 
-  // Auto-start walkthrough whenever the page loads
-  useEffect(() => {
-    const autoTimer = setTimeout(() => {
-      setActive(true);
-      setStepIndex(0);
-      setHasScrolled(false);
-    }, 600);
+  // Campaign pages stay uncovered. Tour is opt-in only.
 
-    return () => clearTimeout(autoTimer);
-  }, []);
-
-  // Listen to open event
   useEffect(() => {
     const handleStart = (e?: Event) => {
       const customEvent = e as CustomEvent<{ step?: number }>;
@@ -171,7 +161,6 @@ export function WalkthroughTour() {
     };
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     if (!active) return;
 
@@ -197,7 +186,6 @@ export function WalkthroughTour() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [active, stepIndex]);
 
-  // Locate target element on page
   const updateTargetRect = useCallback(() => {
     if (!active || !step) return;
 
@@ -223,7 +211,6 @@ export function WalkthroughTour() {
   useEffect(() => {
     if (!active) return;
 
-    // Small delay to allow any page transitions
     const timer = setTimeout(() => {
       updateTargetRect();
     }, 150);
@@ -279,16 +266,13 @@ export function WalkthroughTour() {
 
   return (
     <div className="no-print fixed inset-0 z-[200] overflow-hidden">
-      {/* Target spotlight cutout curtains */}
       {targetRect ? (
         <>
-          {/* Top Curtain */}
           <div
             className="absolute left-0 right-0 top-0 bg-void/80 backdrop-blur-[3px] transition-all duration-300"
             style={{ height: Math.max(0, targetRect.top - 6) }}
             onClick={() => setActive(false)}
           />
-          {/* Bottom Curtain */}
           <div
             className="absolute bottom-0 left-0 right-0 bg-void/80 backdrop-blur-[3px] transition-all duration-300"
             style={{
@@ -296,7 +280,6 @@ export function WalkthroughTour() {
             }}
             onClick={() => setActive(false)}
           />
-          {/* Left Curtain */}
           <div
             className="absolute left-0 bg-void/80 backdrop-blur-[3px] transition-all duration-300"
             style={{
@@ -306,7 +289,6 @@ export function WalkthroughTour() {
             }}
             onClick={() => setActive(false)}
           />
-          {/* Right Curtain */}
           <div
             className="absolute right-0 bg-void/80 backdrop-blur-[3px] transition-all duration-300"
             style={{
@@ -319,8 +301,6 @@ export function WalkthroughTour() {
             }}
             onClick={() => setActive(false)}
           />
-
-          {/* Spotlight Glowing Frame around Target */}
           <div
             className="pointer-events-none absolute rounded-[4px] border-2 border-gold shadow-[0_0_30px_rgba(229,183,95,0.45)] transition-all duration-300"
             style={{
@@ -336,17 +316,14 @@ export function WalkthroughTour() {
           </div>
         </>
       ) : (
-        /* Full backdrop if element not on this specific page */
         <div
           className="absolute inset-0 bg-void/85 backdrop-blur-md transition-all duration-300"
           onClick={() => setActive(false)}
         />
       )}
 
-      {/* Floating Walkthrough Card */}
       <div className="fixed inset-x-0 bottom-6 sm:bottom-10 z-[210] flex justify-center px-4 pointer-events-none">
         <div className="plate pointer-events-auto max-w-xl w-full border border-gold/50 bg-panel/95 p-6 shadow-[0_0_50px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all">
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-paper/[0.08] pb-3">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold/20 text-gold text-xs font-mono font-bold">
@@ -358,7 +335,6 @@ export function WalkthroughTour() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Stepper dots */}
               <div className="flex items-center gap-1.5">
                 {WALKTHROUGH_STEPS.map((s, idx) => (
                   <button
@@ -389,14 +365,12 @@ export function WalkthroughTour() {
             </div>
           </div>
 
-          {/* Body */}
           <div className="mt-4">
             <h3 className="font-display text-xl sm:text-2xl text-paper">{step.title}</h3>
             <p className="mt-1 text-[13px] font-medium text-gold">{step.subtitle}</p>
             <p className="mt-2 text-[13px] leading-relaxed text-quiet">{step.explanation}</p>
           </div>
 
-          {/* If element is not present on this page, offer direct navigation */}
           {!targetRect && step.pageUrl && pathname !== step.pageUrl && (
             <div className="mt-4 flex items-center justify-between rounded-[2px] border border-gold/20 bg-gold/[0.06] p-3">
               <span className="text-[12px] text-paper">
@@ -406,12 +380,11 @@ export function WalkthroughTour() {
                 onClick={() => handleNavigateToTarget(step.pageUrl!)}
                 className="label-xs rounded-[2px] border border-gold bg-gold/20 px-3 py-1 text-gold hover:bg-gold/30 transition-colors"
               >
-                Go to page &amp; highlight &rarr;
+                Go to page & highlight &rarr;
               </button>
             </div>
           )}
 
-          {/* Footer Controls */}
           <div className="mt-6 flex items-center justify-between border-t border-paper/[0.08] pt-4">
             <div className="flex items-center gap-2">
               <button
@@ -456,7 +429,6 @@ export function WalkthroughTour() {
   );
 }
 
-/** Trigger button to launch the live walkthrough */
 export function WalkthroughTrigger({
   label = "Walkthrough",
   startStep = 0,
