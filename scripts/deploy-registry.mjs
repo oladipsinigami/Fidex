@@ -56,12 +56,17 @@ console.log(`  rpc        : ${rpc}`);
 
 if (broadcast) {
   if (!PASSWORD && !PRIVATE_KEY) {
-    console.error(
-      "\n  Refusing to broadcast with no credentials.\n" +
-        "  Set FOUNDRY_PASSWORD in .env.deploy.local (for the keystore) or\n" +
-        "  DEPLOYER_PRIVATE_KEY. Do not paste either into a terminal or chat.\n",
-    );
-    process.exit(1);
+    if (process.stdin.isTTY) {
+      console.log("\n  No FOUNDRY_PASSWORD set -- forge will prompt you for it.");
+    } else {
+      console.error(
+        "\n  Refusing to broadcast with no credentials and no terminal to prompt on.\n" +
+          "  Run this from an interactive terminal so forge can ask for the keystore\n" +
+          "  password, or set FOUNDRY_PASSWORD in .env.deploy.local.\n" +
+          "  Do not paste the password into a terminal command or a chat.\n",
+      );
+      process.exit(1);
+    }
   }
   console.log(
     "\n  NOTE: the registry is non-upgradeable but fundless, so a bad deployment is\n" +
@@ -71,32 +76,29 @@ if (broadcast) {
 }
 
 const env = { ...process.env };
-let owner = S.REGISTRY_OWNER || "";
+let owner = process.env.REGISTRY_OWNER || S.REGISTRY_OWNER || "";
 
-if (!owner) {
-  if (PRIVATE_KEY) {
-    // Derive from the key we are about to broadcast with.
-    const { privateKeyToAccount } = await import("viem/accounts");
-    owner = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`).address;
-  } else {
-    // Foundry keystores are JSON with an `address` field, so the owner can be
-    // derived without ever prompting for the password.
-    const ks = path.join(process.env.USERPROFILE || process.env.HOME || "", ".foundry", "keystores", KEYSTORE);
-    if (existsSync(ks)) {
-      try {
-        owner = JSON.parse(readFileSync(ks, "utf8")).address || "";
-      } catch {
-        owner = "";
-      }
-    }
-  }
+if (!owner && PRIVATE_KEY) {
+  // Derive from the key we are about to broadcast with.
+  const { privateKeyToAccount } = await import("viem/accounts");
+  owner = privateKeyToAccount(
+    PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`,
+  ).address;
 }
 
+/**
+ * Note: a V3 Foundry keystore holds only {crypto, id, version} -- there is no
+ * `address` field to read, so the signer cannot be derived from the file
+ * without decrypting it. REGISTRY_OWNER is a public address, not a secret, so
+ * it belongs in .env.deploy.local.
+ */
 if (!owner) {
   console.error(
-    "\n  Could not determine REGISTRY_OWNER.\n" +
-      "  Set REGISTRY_OWNER in .env.deploy.local. The registry is non-upgradeable,\n" +
-      "  so deploying one nobody can approve analysts on would need a fresh deploy.\n",
+    "\n  REGISTRY_OWNER is required.\n" +
+      "  Add it to .env.deploy.local -- it is a public address, not a password:\n" +
+      "    REGISTRY_OWNER=0x...\n" +
+      "  The registry is non-upgradeable, so deploying one nobody can approve\n" +
+      "  analysts on would need a fresh deploy.\n",
   );
   process.exit(1);
 }
@@ -108,32 +110,44 @@ console.log(`  owner      : ${owner}`);
 
 const args = [
   "script",
-  "contracts/script/DeployFidex.s.sol:DeployFidex",
+  // Relative to contracts/, because foundry.toml (and therefore the remappings
+  // that resolve @openzeppelin and forge-std) lives there. Running forge from
+  // the repo root finds no foundry.toml, so every import fails to resolve.
+  "script/DeployFidex.s.sol:DeployFidex",
   "--rpc-url", rpc,
-  "--broadcast",
 ];
 
-if (PRIVATE_KEY) {
-  process.env.DEPLOYER_PRIVATE_KEY = PRIVATE_KEY;
-} else {
-  args.push("--account", KEYSTORE);
-}
-if (PASSWORD) process.env.FOUNDRY_PASSWORD = PASSWORD;
-
 if (!broadcast) {
-  // forge script simulates unless --broadcast; drop it for a dry run.
-  const i = args.indexOf("--broadcast");
-  if (i >= 0) args.splice(i, 1);
-  console.log("");
+  /**
+   * Dry run: no signer at all.
+   *
+   * Passing `--account` makes forge prompt for the keystore password even when
+   * it is only simulating, so a dry run would need the password to tell you
+   * nothing you cannot learn without it. Simulation uses a default sender, and
+   * the resulting address is *not* the address a broadcast would produce -- it
+   * depends on the real signer and its nonce. Only read the address as
+   * meaningful when the log says BROADCAST.
+   */
+  console.log("\n  (no signer: simulation uses a default sender, so the address below is not real)");
 } else {
-  console.log("");
+  args.push("--broadcast");
+  if (PRIVATE_KEY) {
+    env.DEPLOYER_PRIVATE_KEY = PRIVATE_KEY;
+  } else {
+    args.push("--account", KEYSTORE);
+  }
 }
+if (PASSWORD) env.FOUNDRY_PASSWORD = PASSWORD;
 
 const r = spawnSync("forge", args, {
-  cwd: ROOT,
+  cwd: path.join(ROOT, "contracts"),
   env,
   encoding: "utf8",
   shell: process.platform === "win32",
+  // stdin inherited so forge can prompt for the keystore password; stdout and
+  // stderr piped so the deployed address can be parsed out. Piping all three
+  // would leave forge unable to prompt and hang instead of failing.
+  stdio: ["inherit", "pipe", "pipe"],
 });
 const out = (r.stdout || "") + (r.stderr || "");
 
