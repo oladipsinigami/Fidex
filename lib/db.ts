@@ -125,7 +125,7 @@ async function initDb(): Promise<Client> {
  * `SELECT version FROM schema_version` replaces it, and
  * `scripts/deploy.mjs migrate` can run the same code on demand.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -158,6 +158,29 @@ const SCHEMA_SQL = `
     timestamp INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_attestations_slug ON attestations(slug);
+
+  /**
+   * Replay protection, v4.
+   *
+   * The signature IS the authorisation, so one signature must yield at most one
+   * record. FidexRegistry already reverts SignatureAlreadyUsed; without a
+   * matching constraint here the API stored the same signed payload repeatedly,
+   * and a check-then-insert in application code would still lose a concurrent
+   * race. UNIQUE makes it atomic.
+   *
+   * The DELETE runs first and is required, not defensive: replayed rows created
+   * before this constraint exist, and CREATE UNIQUE INDEX would fail against
+   * them. MIN(id) keeps the earliest -- ids begin with Date.now(), so lexical
+   * order matches insertion order. The surviving row is byte-identical to the
+   * ones dropped, since a replay is the same signature.
+   *
+   * Signatures are stored lowercased so the constraint cannot be sidestepped by
+   * resubmitting the same bytes with different hex casing.
+   */
+  DELETE FROM attestations
+    WHERE id NOT IN (SELECT MIN(id) FROM attestations GROUP BY signature);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_attestations_signature
+    ON attestations(signature);
 
   CREATE TABLE IF NOT EXISTS verifications (
     slug TEXT PRIMARY KEY,
@@ -341,6 +364,9 @@ export async function recordAttestation(attestation: {
   timestamp: number;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   const id = `attest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  // Normalised so the UNIQUE index cannot be sidestepped by resubmitting the
+  // same signature with different hex casing.
+  const signature = attestation.signature.toLowerCase();
 
   let db: Client;
   try {
@@ -362,7 +388,7 @@ export async function recordAttestation(attestation: {
         attestation.letter,
         attestation.score,
         attestation.analystAddress.toLowerCase(),
-        attestation.signature,
+        signature,
         attestation.timestamp,
       ],
     });
@@ -370,6 +396,11 @@ export async function recordAttestation(attestation: {
     return { ok: true, id };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    // The replay guard is the UNIQUE index, so this is authoritative and
+    // atomic rather than a check-then-insert that could lose a race.
+    if (msg.includes("UNIQUE constraint failed") || msg.includes("SQLITE_CONSTRAINT")) {
+      return { ok: false, reason: "signature_replayed" };
+    }
     return { ok: false, reason: msg };
   }
 }

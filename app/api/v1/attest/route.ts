@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 import {
   ATTESTATION_DOMAIN,
   ATTESTATION_TYPES,
+  ATTESTATION_EXPIRY_SECONDS,
+  checkAttestationTimestamp,
   REGISTRY_CONTRACT_ADDRESS,
   REGISTRY_UNCONFIGURED,
 } from "@/lib/attestation";
@@ -129,6 +131,30 @@ export async function POST(req: Request) {
   }
 
   try {
+    /**
+     * Enforce the same timestamp window the contract enforces, BEFORE spending
+     * anything on verification.
+     *
+     * `FidexRegistry.attestWithSig` reverts SignatureExpired when the signed
+     * timestamp is in the future or older than ATTESTATION_EXPIRY. Without this
+     * the API happily recorded both, so `getAttestations` served records the
+     * chain would refuse to write -- an expired grade reading as current, and a
+     * far-future timestamp turning one snapshot into a standing claim.
+     */
+    const tsProblem = checkAttestationTimestamp(timestamp);
+    if (tsProblem) {
+      const detail =
+        tsProblem === "future_dated"
+          ? `timestamp ${timestamp} is in the future (now ${Math.floor(Date.now() / 1000)})`
+          : tsProblem === "expired"
+            ? `timestamp ${timestamp} is older than the ${ATTESTATION_EXPIRY_SECONDS}s window`
+            : `timestamp ${timestamp} is not a valid unix timestamp`;
+      return NextResponse.json(
+        { error: `signature_${tsProblem}`, message: detail },
+        { status: 400 },
+      );
+    }
+
     // Cryptographically verify EIP-712 typed data
     const isValid = await verifyTypedData({
       address: analystAddress as `0x${string}`,
@@ -190,6 +216,24 @@ export async function POST(req: Request) {
     });
 
     if (!result.ok) {
+      /**
+       * A replayed signature is a client error, not a server fault.
+       *
+       * The signature is the authorisation, so submitting it twice must not
+       * produce a second record. `FidexRegistry` already reverts
+       * `SignatureAlreadyUsed`; the UNIQUE index on attestations.signature is
+       * the same rule made atomic here, so two concurrent replays cannot both
+       * win a check-then-insert race.
+       */
+      if (result.reason === "signature_replayed") {
+        return NextResponse.json(
+          {
+            error: "signature_replayed",
+            message: "This signature has already been recorded. Attestations are immutable.",
+          },
+          { status: 409 },
+        );
+      }
       return NextResponse.json({ error: "storage_failed", reason: result.reason }, { status: 500 });
     }
 

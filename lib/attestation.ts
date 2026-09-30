@@ -69,3 +69,37 @@ export const ATTESTATION_TYPES = {
     { name: "timestamp", type: "uint256" },
   ],
 } as const;
+
+/**
+ * Must equal `FidexRegistry.ATTESTATION_EXPIRY` (7 days).
+ *
+ * Duplicated deliberately, with `verify:attest:live` asserting the deployed
+ * contract agrees. A silent drift here means the API accepts signatures the
+ * chain would reject, which is precisely the failure mode this constant exists
+ * to prevent, so the two are compared on every live run rather than trusted.
+ */
+export const ATTESTATION_EXPIRY_SECONDS = 604_800;
+
+export type TimestampRejection = "invalid" | "future_dated" | "expired";
+
+/**
+ * Mirrors the timestamp rules in `FidexRegistry.attestWithSig`, which reverts
+ * `SignatureExpired` when the signed timestamp is in the future or older than
+ * the expiry window.
+ *
+ * The future case is not pedantry: a far-future timestamp lets a signature sit
+ * signed and valid for years, so a grade an analyst intended as a snapshot
+ * becomes a standing claim. Enforcing it only in the contract left the API
+ * storing such records anyway, since it never consulted this rule.
+ *
+ * Returns null when acceptable.
+ */
+export function checkAttestationTimestamp(
+  timestamp: number,
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+): TimestampRejection | null {
+  if (!Number.isSafeInteger(timestamp) || timestamp < 0) return "invalid";
+  if (timestamp > nowSeconds) return "future_dated";
+  if (timestamp + ATTESTATION_EXPIRY_SECONDS < nowSeconds) return "expired";
+  return null;
+}

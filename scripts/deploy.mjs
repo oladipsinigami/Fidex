@@ -183,7 +183,10 @@ async function migrate() {
   const res = await client.execute("SELECT MAX(version) AS v FROM schema_version");
   console.log(`  schema ${applied ? "applied" : "already current"} (version ${res.rows[0].v}).`);
 
-  // Prove the constraint that replay protection depends on actually exists.
+  // Prove the constraints that replay protection depends on actually exist.
+  // A migration can fail partway -- notably CREATE UNIQUE INDEX refuses to run
+  // while duplicate signatures are still present -- and the deploy must not
+  // proceed believing replay protection is in place.
   const idx = await client.execute(
     "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='receipts'",
   );
@@ -191,6 +194,31 @@ async function migrate() {
   console.log(`  receipts indexes: ${names.join(", ")}`);
   if (!names.includes("idx_receipts_tx")) {
     throw new Error("idx_receipts_tx is missing -- replay protection would not hold");
+  }
+
+  const att = await client.execute(
+    "SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='attestations'",
+  );
+  const attNames = att.rows.map((r) => r.name);
+  const sigIdx = att.rows.find((r) => r.name === "idx_attestations_signature");
+  console.log(`  attestations indexes: ${attNames.join(", ")}`);
+  if (!sigIdx) {
+    throw new Error(
+      "idx_attestations_signature is missing -- a replayed signature could be stored twice. " +
+        "Check for duplicate rows in attestations, which block the UNIQUE index.",
+    );
+  }
+  if (!/UNIQUE/i.test(sigIdx.sql || "")) {
+    throw new Error("idx_attestations_signature exists but is not UNIQUE");
+  }
+
+  const dupes = await client.execute(
+    "SELECT signature, COUNT(*) AS n FROM attestations GROUP BY signature HAVING COUNT(*) > 1",
+  );
+  if (dupes.rows.length) {
+    throw new Error(
+      `${dupes.rows.length} signature(s) still have duplicate rows, so replay protection is not in force`,
+    );
   }
   client.close();
 }
