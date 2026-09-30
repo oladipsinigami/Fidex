@@ -34,6 +34,7 @@ for (const line of readFileSync(SECRETS, "utf8").split(/\r?\n/)) {
 
 const net = (process.argv[2] || "testnet").toLowerCase();
 const broadcast = process.argv.includes("--broadcast");
+const configure = process.argv.includes("--configure");
 const NETWORKS = {
   testnet: { rpc: "https://rpc.testnet.arc.io", chainId: 5042002 },
   mainnet: { rpc: "https://rpc.mainnet.arc.io", chainId: 5042 },
@@ -43,6 +44,47 @@ if (!NETWORKS[net]) {
   process.exit(1);
 }
 const { rpc, chainId } = NETWORKS[net];
+
+const argValue = (flag) => {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+};
+
+/**
+ * `--configure` WITHOUT `--broadcast` never runs forge.
+ *
+ * Configure and deploy are separate acts. Previously --configure was only
+ * honoured on a broadcast run, so the only way to point the app at a registry
+ * that was already deployed was to deploy a SECOND contract and use that
+ * address -- costing real gas and leaving an orphan behind.
+ */
+if (configure && !broadcast) {
+  const addr = (argValue("--address") || process.env.REGISTRY_ADDRESS || "").trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+    console.error(
+      "\n  --configure needs the address of an already deployed registry:\n" +
+        "    node scripts/deploy-registry.mjs mainnet --configure --address 0x...\n" +
+        "  or set REGISTRY_ADDRESS=0x...\n" +
+        "  Nothing was deployed.\n",
+    );
+    process.exit(1);
+  }
+
+  const next = `\nNEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS=${addr}\nNEXT_PUBLIC_FIDEX_NETWORK=${net}\n`;
+  const updated = readFileSync(SECRETS, "utf8")
+    .replace(/^NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS=.*$/m, "")
+    .replace(/^NEXT_PUBLIC_FIDEX_NETWORK=.*$/m, "");
+
+  writeFileSync(SECRETS, updated.trimEnd() + "\n" + next);
+  console.log(`\n  wrote NEXT_PUBLIC_FIDEX_REGISTRY_ADDRESS=${addr}`);
+  console.log(`  wrote NEXT_PUBLIC_FIDEX_NETWORK=${net}`);
+  console.log(`\n  Nothing was deployed and no transaction was sent.\n`);
+  console.log(`  FIDEX_NETWORK in .env.deploy.local is still "${S.FIDEX_NETWORK || "(unset)"}".`);
+  console.log(`  scripts/deploy.mjs refuses to deploy while it disagrees with`);
+  console.log(`  NEXT_PUBLIC_FIDEX_NETWORK, so the app stays on its current network until`);
+  console.log(`  you change that deliberately.\n`);
+  process.exit(0);
+}
 
 const KEYSTORE = S.FOUNDRY_KEYSTORE || "defaultkey";
 const PASSWORD = S.FOUNDRY_PASSWORD || "";
@@ -173,9 +215,9 @@ if (addr) {
    * should be separate commands. Testnet keeps the convenience because there is
    * nothing to break.
    */
-  const configure = process.argv.includes("--configure");
+const configureNow = configure;
 
-  if (broadcast && net === "mainnet" && !configure) {
+  if (broadcast && net === "mainnet" && !configureNow) {
     console.log(`\n  NOT writing to .env.deploy.local (mainnet requires --configure).`);
     console.log(`  The app is still pointed at testnet and stays that way until you run:`);
     console.log(`    node scripts/deploy-registry.mjs mainnet --broadcast --configure`);
