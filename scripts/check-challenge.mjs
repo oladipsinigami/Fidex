@@ -17,7 +17,13 @@ const SELLER = "0x2222222222222222222222222222222222222222";
 const MODE = process.env.ARCGRADE_X402_MODE ?? "gateway";
 const IS_TESTNET = (process.env.ARCGRADE_NETWORK ?? "testnet") === "testnet";
 const EXPECTED_NETWORK = IS_TESTNET ? "eip155:5042002" : "eip155:5042";
-const EXPECTED_GW = "0x0077777d7EBA4688BDeF3E311b846F25870A19B9";
+// Per-chain, not one global value: Circle runs a separate Gateway facilitator
+// per network and the settlement wallet differs between them. This was pinned to
+// the testnet wallet while EXPECTED_NETWORK beside it was network-aware, so a
+// correct mainnet challenge failed this check on the wallet line.
+const EXPECTED_GW = IS_TESTNET
+  ? "0x0077777d7EBA4688BDeF3E311b846F25870A19B9"
+  : "0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE";
 
 if (!existsSync(".next/BUILD_ID")) {
   console.log("No production build found; running `next build` first (this takes a moment)...\n");
@@ -112,7 +118,7 @@ try {
     check("extra.name is GatewayWalletBatched", a.extra?.name === "GatewayWalletBatched", a.extra?.name);
     check(
       "extra.verifyingContract matches the Gateway wallet for this network",
-      a.extra?.verifyingContract === EXPECTED_GW,
+      String(a.extra?.verifyingContract).toLowerCase() === EXPECTED_GW.toLowerCase(),
       a.extra?.verifyingContract,
     );
     check("batched settlement window (345600)", a.maxTimeoutSeconds === 345600, a.maxTimeoutSeconds);

@@ -1,18 +1,27 @@
 /**
- * Live x402 settlement on Arc testnet via Circle Gateway nanopayments.
+ * Live x402 settlement on Arc via Circle Gateway nanopayments.
  *
- * Buys one real dossier with real testnet USDC and asserts the server returns
- * 200 with a settlement reference. Requires a funded buyer key:
+ * Buys one real dossier with real USDC and asserts the server returns 200 with
+ * a settlement reference. Network comes from FIDEX_NETWORK / ARCGRADE_NETWORK
+ * and DEFAULTS TO TESTNET, so an unset environment can never spend mainnet
+ * funds. Testnet settlement is well exercised; mainnet has never been settled
+ * before, which is why the challenge is asserted against the per-network
+ * Gateway wallet as well as the chain id.
  *
- *   ARCGRADE_BUYER_PRIVATE_KEY  0x... with testnet USDC on Arc testnet
+ *   ARCGRADE_BUYER_PRIVATE_KEY  0x... with USDC on the target network
  *   ARCGRADE_PAY_TO             your seller address (receives the funds)
  *   ARCGRADE_URL                default http://127.0.0.1:4597
  *   SLUG                        default aave-v4-arc
  *
- * Get testnet USDC from the Circle Faucet:
- *   https://faucet.circle.com  (Arc Testnet)
+ * Must differ from the buyer. Circle's facilitator rejects a payment whose
+ * payer equals its payTo with self_transfer, which is correct: if paying
+ * yourself were allowed, anyone could unlock paid content with a wallet that
+ * never spends anything, so the payment would prove nothing.
  *
- *   node scripts/settle-live.mjs
+ * Testnet USDC: https://faucet.circle.com
+ *
+ *   FIDEX_NETWORK=testnet  node scripts/settle-live.mjs
+ *   FIDEX_NETWORK=mainnet  node scripts/settle-live.mjs
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -34,8 +43,47 @@ const PORT = 4597;
 const URL = process.env.FIDEX_URL ?? process.env.ARCGRADE_URL ?? `http://127.0.0.1:${PORT}`;
 const SLUG = process.env.FIDEX_SLUG ?? process.env.ARCGRADE_SLUG ?? process.env.SLUG ?? "aave-v4-arc";
 const PAY_TO = process.env.FIDEX_PAY_TO ?? process.env.ARCGRADE_PAY_TO;
-// Override with FIDEX_TESTNET_RPC or ARCGRADE_TESTNET_RPC if rpc.testnet.arc.io is unreachable.
-const ARC_TESTNET_RPC = process.env.FIDEX_TESTNET_RPC ?? process.env.ARCGRADE_TESTNET_RPC ?? "https://rpc.testnet.arc.io";
+
+/**
+ * Network selection.
+ *
+ * Previously hardcoded to testnet: the RPC, the env handed to the spawned
+ * server, and a bare assertion on eip155:5042002. That made mainnet settlement
+ * impossible to test at all, which is the one thing that most needed proving
+ * before a mainnet flip. Defaults to testnet so an unset environment can never
+ * accidentally spend real USDC.
+ *
+ * Circle runs a separate Gateway per network, and each serves only its own
+ * chains, so the wrong host answers unsupported_network for a chain it supports
+ * on the other host. lib/x402.ts picks the host from the same variable.
+ */
+const NETWORK = (process.env.FIDEX_NETWORK ?? process.env.ARCGRADE_NETWORK ?? "testnet").toLowerCase();
+const NETWORKS = {
+  mainnet: {
+    chainId: 5042,
+    caip: "eip155:5042",
+    rpc: "https://rpc.mainnet.arc.io",
+    rpcEnv: ["FIDEX_MAINNET_RPC", "ARCGRADE_MAINNET_RPC"],
+    label: "Arc mainnet",
+    fundHint: "fund the buyer with mainnet USDC (native gas on Arc) before re-running",
+  },
+  testnet: {
+    chainId: 5042002,
+    caip: "eip155:5042002",
+    rpc: "https://rpc.testnet.arc.io",
+    rpcEnv: ["FIDEX_TESTNET_RPC", "ARCGRADE_TESTNET_RPC"],
+    label: "Arc testnet",
+    fundHint: "use the Circle Faucet (https://faucet.circle.com), then re-run",
+  },
+};
+if (!NETWORKS[NETWORK]) {
+  console.error(`Unknown FIDEX_NETWORK "${NETWORK}". Use testnet or mainnet.`);
+  process.exit(1);
+}
+const NET = NETWORKS[NETWORK];
+// Override the RPC if the public endpoint is unreachable.
+const ARC_RPC =
+  NET.rpcEnv.map((k) => process.env[k]).find(Boolean) ?? NET.rpc;
 
 async function promptKeystorePassword(accountName) {
   // Foundry's own convention: honour the env var so this can run
@@ -144,7 +192,9 @@ if (!buyerPrivateKey || !PAY_TO) {
       "  Foundry Keystore            ~/.foundry/keystores/defaultkey (or set ARCGRADE_BUYER_ACCOUNT)",
       "                              (Private keys are decrypted in-memory and NEVER stored in .env)",
       "",
-      "Fund the buyer with testnet USDC first: https://faucet.circle.com",
+      `Network: ${NETWORK} (${NET.label}, ${NET.caip})`,
+      "",
+      `Fund the buyer first: ${NET.fundHint}`,
     ].join("\n"),
   );
   process.exit(2);
@@ -160,7 +210,7 @@ async function rpc(method, params = [], attempts = 4) {
   let lastErr;
   for (let i = 1; i <= attempts; i++) {
     try {
-      const res = await fetch(ARC_TESTNET_RPC, {
+      const res = await fetch(ARC_RPC, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -177,7 +227,7 @@ async function rpc(method, params = [], attempts = 4) {
         await new Promise((r) => setTimeout(r, 1500 * i));
       } else {
         console.error(
-          `\nRPC unreachable after ${attempts} attempts: ${ARC_TESTNET_RPC}\n` +
+          `\nRPC unreachable after ${attempts} attempts: ${ARC_RPC}\n` +
             `  cause: ${code} ${err?.cause?.message ?? err?.message}\n` +
             `  If this persists, try a different Arc testnet RPC or a wired connection.`,
         );
@@ -207,14 +257,14 @@ if (PAY_TO.toLowerCase() === account.address.toLowerCase()) {
   process.exit(4);
 }
 
-// Arc testnet: USDC is the gas token, so the buyer needs no other asset.
+// USDC is the native gas token on Arc, so the buyer needs no other asset.
 const balanceHex = await rpc("eth_getBalance", [account.address, "latest"]);
 const balance = BigInt(balanceHex ?? "0x0");
 
 console.log(`buyer native USDC balance: ${balance} wei\n`);
 
 if (balance === 0n) {
-  console.error("Buyer has no Arc testnet USDC. Use the Circle Faucet, then re-run.");
+  console.error(`Buyer has no ${NET.label} USDC. ${NET.fundHint}.`);
   process.exit(3);
 }
 
@@ -235,11 +285,14 @@ const app = spawn(
       ...process.env,
       FIDEX_SECRET: process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET ?? "live-settlement-test-secret",
       FIDEX_X402_MODE: "gateway",
-      FIDEX_NETWORK: "testnet",
+      // Passed through rather than forced to testnet. Circle runs a separate
+      // Gateway host per network and each serves only its own chains, so this
+      // is what selects gateway-api.circle.com vs gateway-api-testnet.circle.com.
+      FIDEX_NETWORK: NETWORK,
       FIDEX_PUBLIC_URL: URL,
       ARCGRADE_SECRET: process.env.FIDEX_SECRET ?? process.env.ARCGRADE_SECRET ?? "live-settlement-test-secret",
       ARCGRADE_X402_MODE: "gateway",
-      ARCGRADE_NETWORK: "testnet",
+      ARCGRADE_NETWORK: NETWORK,
       ARCGRADE_PUBLIC_URL: URL,
       NODE_ENV: "production",
     },
@@ -266,14 +319,32 @@ try {
   const accept = unpaidBody.accepts?.[0];
   console.log(`   network                 ${accept?.network}`);
   console.log(`   amount                  ${accept?.amount}`);
+  console.log(`   network                 ${accept?.network}`);
+
+  // Assert the challenge advertises the chain we asked for, and that the
+  // verifyingContract matches the Gateway wallet for THAT network. The wallets
+  // differ per chain, so a challenge that kept the testnet wallet while
+  // advertising mainnet would verify as a signature no facilitator accepts.
+  if (accept?.network !== NET.caip) {
+    throw new Error(`expected ${NET.label} (${NET.caip}), got ${accept?.network}`);
+  }
+  console.log(`   network                 ${NET.caip} as expected`);
   console.log(`   payTo                   ${accept?.payTo}`);
   console.log(`   extra.name              ${accept?.extra?.name}`);
 
   if (accept?.extra?.name !== "GatewayWalletBatched") {
     throw new Error("challenge is not advertising GatewayWalletBatched");
   }
-  if (accept?.network !== "eip155:5042002") {
-    throw new Error(`expected Arc testnet, got ${accept?.network}`);
+  // 0x7777... is the mainnet Gateway wallet; 0x0077... the testnet one.
+  const expectedWallet = NETWORK === "mainnet"
+    ? "0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"
+    : "0x0077777d7EBA4688BDeF3E311b846F25870A19B9";
+  const gotWallet = accept?.extra?.verifyingContract;
+  if (typeof gotWallet === "string" && gotWallet.toLowerCase() !== expectedWallet.toLowerCase()) {
+    throw new Error(
+      `challenge advertises the ${NETWORK === "mainnet" ? "testnet" : "mainnet"} Gateway wallet ` +
+        `${gotWallet}, expected ${expectedWallet} for ${NET.label}`,
+    );
   }
 
   const prHeader = unpaid.headers.get("payment-required");
