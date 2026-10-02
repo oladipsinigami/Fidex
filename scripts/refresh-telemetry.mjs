@@ -23,8 +23,8 @@
  * It fails closed: if the RPC cannot be reached, nothing is recorded as
  * verified. Absence of a stamp must never mean "healthy".
  */
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
@@ -41,6 +41,7 @@ const RPC_URL =
   (IS_TESTNET ? "https://rpc.testnet.arc.io" : "https://rpc.mainnet.arc.io");
 const EXPECTED_CHAIN_ID = IS_TESTNET ? 5042002 : 5042;
 
+mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 db.exec("PRAGMA journal_mode = WAL;");
 db.exec(`

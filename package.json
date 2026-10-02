@@ -18,6 +18,7 @@
     "test:attest": "node scripts/test-attestation.mjs",
     "test:attest:rules": "node scripts/test-attestation-rules.mjs",
     "test:contracts": "node scripts/test-contracts.mjs",
+    "test:watchdog": "node scripts/test-watchdog.mjs",
     "test:freshness": "node --experimental-strip-types scripts/test-freshness.mjs",
     "test:grade": "node scripts/test-grade-formula.mjs",
     "test:leak": "node scripts/check-ssr-leak.mjs",
