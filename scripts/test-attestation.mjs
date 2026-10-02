@@ -163,7 +163,7 @@ try {
   const analyst = privateKeyToAccount(privateKey);
   console.log(`Test Analyst Address: ${analyst.address}`);
 
-  const timestamp = Date.now();
+  const timestamp = Math.floor(Date.now() / 1000);
   const message = {
     slug: "aave-v4-arc",
     letter: "A",
